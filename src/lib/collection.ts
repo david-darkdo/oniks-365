@@ -35,19 +35,23 @@ export interface CollectionV2 {
   updated_at: string;
 }
 
-const GUEST_KEY = "stoneworks.guest_collection_v2";
-const GUEST_REQ_KEY = "stoneworks.guest_requirements_v2";
-const USER_REQ_KEY_PREFIX = "stoneworks.user_requirements_v2_";
-const CACHED_ITEMS_KEY_PREFIX = "stoneworks.cached_user_items_";
+const GUEST_KEY = "oniks365.guest_collection_v2";
+const GUEST_REQ_KEY = "oniks365.guest_requirements_v2";
+const USER_REQ_KEY_PREFIX = "oniks365.user_requirements_v2_";
+const CACHED_ITEMS_KEY_PREFIX = "oniks365.cached_user_items_";
 
 export function generateCollectionReference(colId?: string): string {
   const year = new Date().getFullYear();
   const hex = (colId || Math.random().toString(36)).substring(0, 6).toUpperCase();
-  return `ENC-${year}-${hex}`;
+  return `ONK-${year}-${hex}`;
 }
 
-export function detectProductUnit(product: any): "m²" | "Pieces" {
-  if (!product) return "Pieces";
+export function detectProductUnit(product: any): string {
+  if (!product) return "piece";
+  if (product.pricing_unit) {
+    if (product.pricing_unit === "sqm") return "m²";
+    return product.pricing_unit;
+  }
   const name = String(product.name || "").toLowerCase();
   const brand = String(product.brand || "").toLowerCase();
   const desc = String(product.short_description || "").toLowerCase();
@@ -62,7 +66,7 @@ export function detectProductUnit(product: any): "m²" | "Pieces" {
     return "m²";
   }
 
-  return "Pieces";
+  return "piece";
 }
 
 export function getGuestCollection(): GuestItem[] {
@@ -81,23 +85,28 @@ export function getGuestCollection(): GuestItem[] {
 
 export function setGuestCollection(items: GuestItem[]) {
   if (typeof window === "undefined") return;
-  const baseItems = items.map(i => ({ product_id: i.product_id, added_at: i.added_at }));
-  const reqMap: Record<string, ItemRequirements> = {};
-  items.forEach(i => {
-    if (i.quantity || i.installation_location || i.delivery_preference || i.installation_required || i.project_notes) {
-      reqMap[i.product_id] = {
-        quantity: i.quantity,
-        unit: i.unit,
-        installation_location: i.installation_location,
-        delivery_preference: i.delivery_preference,
-        installation_required: i.installation_required,
-        project_notes: i.project_notes
-      };
-    }
-  });
-  window.localStorage.setItem(GUEST_KEY, JSON.stringify(baseItems));
-  window.localStorage.setItem(GUEST_REQ_KEY, JSON.stringify(reqMap));
-  window.dispatchEvent(new Event("collection:change"));
+  try {
+    const baseItems = items.map(i => ({ product_id: i.product_id, added_at: i.added_at }));
+    const reqMap: Record<string, ItemRequirements> = {};
+    items.forEach(i => {
+      if (i.quantity || i.installation_location || i.delivery_preference || i.installation_required || i.project_notes) {
+        reqMap[i.product_id] = {
+          quantity: i.quantity,
+          unit: i.unit,
+          installation_location: i.installation_location,
+          delivery_preference: i.delivery_preference,
+          installation_required: i.installation_required,
+          project_notes: i.project_notes
+        };
+      }
+    });
+    window.localStorage.setItem(GUEST_KEY, JSON.stringify(baseItems));
+    window.localStorage.setItem(GUEST_REQ_KEY, JSON.stringify(reqMap));
+    window.dispatchEvent(new Event("collection:change"));
+  } catch (e) {
+    console.warn("Failed saving guest collection to localStorage:", e);
+    window.dispatchEvent(new Event("collection:change"));
+  }
 }
 
 export function updateGuestItemRequirements(product_id: string, reqs: ItemRequirements) {
