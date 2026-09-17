@@ -99,23 +99,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     const meta = [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { name: "theme-color", content: "#2f5240" },
-      { title: "Enreach Concepts — Luxury Building Materials Showroom" },
+      { name: "theme-color", content: "#0B0C0E" },
+      { title: "ONIKS365 — Premium Kitchen Solutions & Luxury Bathroom Fittings" },
       {
         name: "description",
-        content: "Discover luxury tiles, security doors, plumbing, lighting and custom finishes. Curated premium building materials at Enreach Concepts Abuja.",
+        content: "ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS — supplying premium modern kitchen solutions and luxury bathroom fittings across Nigeria.",
       },
-      { property: "og:title", content: "Enreach Concepts — Luxury Building Materials Showroom" },
+      { property: "og:title", content: "ONIKS365 — Premium Kitchen Solutions & Luxury Bathroom Fittings" },
       {
         property: "og:description",
-        content: "A curated catalogue of premium tiles, doors and finishes — built for professional builders and custom residential developments.",
+        content: "Oniks365 is a trusted supplier of premium modern kitchen solutions and luxury bathroom fittings delivering quality, elegance, and functionality across Nigeria.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Enreach Concepts — Luxury Building Materials Showroom" },
-      { name: "twitter:description", content: "A curated catalogue of premium tiles, doors and finishes — built for professional builders." },
-      { property: "og:image", content: "/logo.png" },
-      { name: "twitter:image", content: "/logo.png" },
+      { name: "twitter:title", content: "ONIKS365 — Premium Kitchen Solutions & Luxury Bathroom Fittings" },
+      { name: "twitter:description", content: "Oniks365 is a trusted supplier of premium modern kitchen solutions and luxury bathroom fittings delivering quality, elegance, and functionality across Nigeria." },
+      { property: "og:image", content: "https://oniks365.ng/logo.png" },
+      { name: "twitter:image", content: "https://oniks365.ng/logo.png" },
     ];
 
     if (googleVerify) {
@@ -130,8 +130,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       links: [
         { rel: "stylesheet", href: appCss },
         { rel: "manifest", href: "/manifest.webmanifest" },
-        { rel: "apple-touch-icon", href: "/icon-512.png" },
-        { rel: "icon", href: "/icon-512.png", type: "image/png" },
+        { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+        { rel: "icon", href: "/favicon.png", type: "image/png" },
       ],
     };
   },
@@ -145,25 +145,35 @@ function RootShell({ children }: { children: ReactNode }) {
   const organizationSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "name": "Enreach Concepts",
-    "url": "https://showroom.enreach.concepts",
-    "logo": "https://showroom.enreach.concepts/logo.png",
-    "description": "Luxury building materials showroom in Abuja specializing in premium tiles, armored security doors, sanitaryware, and architectural finishes.",
-    "address": {
-      "@type": "PostalAddress",
-      "addressLocality": "Abuja",
-      "addressCountry": "NG"
-    }
+    "name": "ONIKS365",
+    "legalName": "ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS",
+    "url": "https://oniks365.ng",
+    "logo": "https://oniks365.ng/logo.png",
+    "description": "ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS — supplying premium modern kitchen solutions and luxury bathroom fittings across Nigeria.",
+    "address": [
+      {
+        "@type": "PostalAddress",
+        "streetAddress": "69/243 Cornershop International Building Materials Market, Dei-Dei",
+        "addressLocality": "Abuja FCT",
+        "addressCountry": "NG"
+      },
+      {
+        "@type": "PostalAddress",
+        "streetAddress": "Odunade Building Materials Market, Coker, Orile, Badagry Expressway",
+        "addressLocality": "Lagos",
+        "addressCountry": "NG"
+      }
+    ]
   };
 
   const websiteSchema = {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "Enreach Concepts Digital Showroom",
-    "url": "https://showroom.enreach.concepts",
+    "name": "ONIKS365 Digital Showroom",
+    "url": "https://oniks365.ng",
     "potentialAction": {
       "@type": "SearchAction",
-      "target": "https://showroom.enreach.concepts/search?q={search_term_string}",
+      "target": "https://oniks365.ng/search?q={search_term_string}",
       "query-input": "required name=search_term_string"
     }
   };
@@ -271,9 +281,9 @@ function RootAppWrapper() {
   const orgSchema = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "name": (settings as any)?.company_name || "Enreach Concepts",
-    "url": typeof window !== "undefined" ? window.location.origin : "https://enreachconcepts.com",
-    "logo": (settings as any)?.company_logo || (typeof window !== "undefined" ? `${window.location.origin}/logo.png` : "https://enreachconcepts.com/logo.png"),
+    "name": (settings as any)?.company_name || "ONIKS365",
+    "url": typeof window !== "undefined" ? window.location.origin : "https://oniks365.ng",
+    "logo": (settings as any)?.company_logo || (typeof window !== "undefined" ? `${window.location.origin}/logo.png` : "https://oniks365.ng/logo.png"),
     "contactPoint": {
       "@type": "ContactPoint",
       "telephone": settings?.support_whatsapp || "",
@@ -313,7 +323,7 @@ function RootAppWrapper() {
             <div className="flex flex-col items-center gap-4 animate-breathing">
               <img
                 src="/logo.png"
-                alt="Enreach Concepts Logo"
+                alt="ONIKS365 Logo"
                 className="h-16 w-auto object-contain"
               />
               <p className="font-display text-[9px] tracking-widest text-muted-foreground/80 uppercase">

@@ -45,16 +45,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       void syncOfflineActions();
     };
     const handleOffline = () => {
-      toast.warning("Connection lost. Running in offline resilience mode.");
+      toast.warning("Working offline. Actions will be queued.");
     };
-
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-
-    if (navigator.onLine) {
-      void syncOfflineActions();
-    }
-
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
@@ -62,63 +56,64 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <TopBar />
-      <main className="flex-1 pb-16 md:pb-6">{children}</main>
+    <div className="min-h-screen bg-background flex flex-col justify-between">
+      <div>
+        <TopBar />
+        <main className="pb-16 md:pb-0">{children}</main>
+      </div>
 
-      {/* Seamless Scrolling Marquee Trust Ticker Belt */}
+      {/* Trust Features Scrolling Ribbon */}
       {trustFeatures.length > 0 && (
-        <section className="fixed bottom-12 md:bottom-0 left-0 right-0 z-20 border-t border-border bg-white/95 py-2.5 shadow-md overflow-hidden backdrop-blur select-none">
+        <section className="bg-[#0B0C0E] border-y border-[#C5A059]/30 py-2.5 overflow-hidden relative shadow-inner">
           <style>{`
             @keyframes marquee {
-              0% { transform: translateX(0); }
+              0% { transform: translateX(0%); }
               100% { transform: translateX(-50%); }
             }
             .animate-marquee {
               display: flex;
               width: max-content;
-              animation: marquee 30s linear infinite;
+              animation: marquee 35s linear infinite;
+            }
+            .animate-marquee:hover {
+              animation-play-state: paused;
             }
           `}</style>
-          
-          <div className="animate-marquee flex items-center gap-16 px-4">
-            {/* First Set */}
+          <div className="animate-marquee flex gap-8 items-center">
+            {/* First sequence */}
             {trustFeatures.map((t) => {
               const IconComponent =
-                t.icon_name === "Shield" ? Shield :
                 t.icon_name === "Truck" ? Truck :
                 t.icon_name === "CreditCard" ? CreditCard :
                 t.icon_name === "Headphones" ? Headphones : HelpCircle;
               return (
                 <div key={`${t.id}-1`} className="flex gap-2.5 items-center shrink-0">
-                  <div className="rounded-full bg-[#1E82A6]/10 p-1.5 text-[#1E82A6] shrink-0">
+                  <div className="rounded-full bg-[#C5A059]/15 p-1.5 text-[#D4AF37] shrink-0 border border-[#C5A059]/30">
                     <IconComponent className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0 flex items-baseline gap-1.5">
-                    <h4 className="font-bold text-[11px] text-foreground tracking-tight whitespace-nowrap">{t.title}</h4>
-                    <span className="text-[10px] text-muted-foreground/40 font-bold font-mono">|</span>
-                    <p className="text-[10px] text-muted-foreground whitespace-nowrap">{t.description}</p>
+                    <h4 className="font-bold text-[11px] text-white tracking-tight whitespace-nowrap">{t.title}</h4>
+                    <span className="text-[10px] text-[#C5A059]/50 font-bold font-mono">|</span>
+                    <p className="text-[10px] text-gray-300 whitespace-nowrap">{t.description}</p>
                   </div>
                 </div>
               );
             })}
-            
-            {/* Duplicated Second Set for Seamless Loop */}
+            {/* Duplicate sequence for seamless loop */}
             {trustFeatures.map((t) => {
               const IconComponent =
-                t.icon_name === "Shield" ? Shield :
                 t.icon_name === "Truck" ? Truck :
                 t.icon_name === "CreditCard" ? CreditCard :
                 t.icon_name === "Headphones" ? Headphones : HelpCircle;
               return (
                 <div key={`${t.id}-2`} className="flex gap-2.5 items-center shrink-0">
-                  <div className="rounded-full bg-[#1E82A6]/10 p-1.5 text-[#1E82A6] shrink-0">
+                  <div className="rounded-full bg-[#C5A059]/15 p-1.5 text-[#D4AF37] shrink-0 border border-[#C5A059]/30">
                     <IconComponent className="h-3.5 w-3.5" />
                   </div>
                   <div className="min-w-0 flex items-baseline gap-1.5">
-                    <h4 className="font-bold text-[11px] text-foreground tracking-tight whitespace-nowrap">{t.title}</h4>
-                    <span className="text-[10px] text-muted-foreground/40 font-bold font-mono">|</span>
-                    <p className="text-[10px] text-muted-foreground whitespace-nowrap">{t.description}</p>
+                    <h4 className="font-bold text-[11px] text-white tracking-tight whitespace-nowrap">{t.title}</h4>
+                    <span className="text-[10px] text-[#C5A059]/50 font-bold font-mono">|</span>
+                    <p className="text-[10px] text-gray-300 whitespace-nowrap">{t.description}</p>
                   </div>
                 </div>
               );
@@ -211,20 +206,20 @@ function TopBar() {
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-white/95 backdrop-blur shadow-xs">
+    <header className="sticky top-0 z-30 border-b border-[#C5A059]/30 bg-[#0F1115] text-white backdrop-blur shadow-md">
       <div className="container-app flex items-center gap-4 py-3">
         <Link to="/" className="flex items-center gap-3 group">
           <img
             src="/logo.png"
-            alt="SOLIDAS Logo"
+            alt="ONIKS365 Logo"
             className="h-9 w-auto object-contain transition group-hover:scale-105"
           />
           <div className="flex flex-col">
-            <span className="font-display text-lg font-bold tracking-tight text-[#1E82A6] leading-none">
-              SOLIDAS
+            <span className="font-display text-lg font-bold tracking-tight text-[#ea580c] leading-none">
+              ONIKS365
             </span>
-            <span className="hidden text-[9px] font-semibold tracking-wider text-muted-foreground uppercase sm:block mt-0.5">
-              Tiles & Marble Nig. Ltd.
+            <span className="hidden text-[9px] font-semibold tracking-wider text-[#D4AF37] uppercase sm:block mt-0.5">
+              ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS
             </span>
           </div>
         </Link>
@@ -237,12 +232,12 @@ function TopBar() {
           }}
           className="relative flex-1"
         >
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             name="q"
             defaultValue={search?.q ?? ""}
-            placeholder="Search Tiles, Marble, Security Doors & Finishes…"
-            className="w-full rounded-full border border-border bg-surface-2 py-2 pl-10 pr-4 text-sm text-foreground outline-none transition focus:border-[#1E82A6] focus:bg-white focus:ring-1 focus:ring-[#1E82A6]"
+            placeholder="Search Sanitary Ware, Kitchen Sinks, Showers & Fittings…"
+            className="w-full rounded-full border border-white/20 bg-white/10 py-2 pl-10 pr-4 text-sm text-white placeholder-gray-400 outline-none transition focus:border-[#C5A059] focus:bg-white/15 focus:ring-1 focus:ring-[#C5A059]"
           />
         </form>
         
@@ -250,31 +245,31 @@ function TopBar() {
         <nav className="hidden md:flex items-center gap-1.5 shrink-0">
           <Link
             to="/home"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-bold text-foreground hover:bg-[#1E82A6]/10 hover:text-[#1E82A6] hover:border-[#1E82A6] transition shadow-2xs"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-bold text-gray-200 hover:bg-[#C5A059]/20 hover:text-[#D4AF37] hover:border-[#C5A059] transition shadow-xs"
           >
-            <Home className="h-3.5 w-3.5 text-[#1E82A6]" />
+            <Home className="h-3.5 w-3.5 text-[#D4AF37]" />
             <span>Home</span>
           </Link>
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-bold text-foreground hover:bg-[#1E82A6]/10 hover:text-[#1E82A6] hover:border-[#1E82A6] transition shadow-2xs"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-bold text-gray-200 hover:bg-[#C5A059]/20 hover:text-[#D4AF37] hover:border-[#C5A059] transition shadow-xs"
           >
-            <Compass className="h-3.5 w-3.5 text-[#1E82A6]" />
+            <Compass className="h-3.5 w-3.5 text-[#D4AF37]" />
             <span>Showroom</span>
           </Link>
           <Link
             to="/collection"
             search={{ autoPush: false }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-bold text-foreground hover:bg-[#1E82A6]/10 hover:text-[#1E82A6] hover:border-[#1E82A6] transition shadow-2xs"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-bold text-gray-200 hover:bg-[#C5A059]/20 hover:text-[#D4AF37] hover:border-[#C5A059] transition shadow-xs"
           >
-            <Bookmark className="h-3.5 w-3.5 text-[#1E82A6]" />
+            <Bookmark className="h-3.5 w-3.5 text-[#D4AF37]" />
             <span>Workspace</span>
           </Link>
           <Link
             to="/contact"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-bold text-foreground hover:bg-[#1E82A6]/10 hover:text-[#1E82A6] hover:border-[#1E82A6] transition shadow-2xs"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-bold text-gray-200 hover:bg-[#C5A059]/20 hover:text-[#D4AF37] hover:border-[#C5A059] transition shadow-xs"
           >
-            <Phone className="h-3.5 w-3.5 text-[#1E82A6]" />
+            <Phone className="h-3.5 w-3.5 text-[#D4AF37]" />
             <span>Contact</span>
           </Link>
         </nav>
@@ -285,11 +280,11 @@ function TopBar() {
             <div className="relative">
               <button
                 onClick={openNotifications}
-                className="relative grid h-9 w-9 place-items-center rounded-full border border-border bg-white text-foreground transition hover:border-[#1E82A6]"
+                className="relative grid h-9 w-9 place-items-center rounded-full border border-white/20 bg-white/10 text-[#D4AF37] transition hover:border-[#C5A059]"
               >
-                <Bell className="h-4 w-4 text-[#1E82A6]" />
+                <Bell className="h-4 w-4 text-[#D4AF37]" />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#C0262D] text-[8px] font-bold text-white shadow-sm animate-pulse">
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#ea580c] text-[8px] font-bold text-white shadow-sm animate-pulse">
                     {unreadCount}
                   </span>
                 )}
@@ -299,33 +294,33 @@ function TopBar() {
                 <>
                   <div 
                     onClick={() => setShowNotifications(false)}
-                    className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 md:hidden"
+                    className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden"
                   />
                   
-                  <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-[340px] rounded-xl border border-border bg-white shadow-2xl p-4 text-xs space-y-3 z-50 md:absolute md:top-auto md:left-auto md:right-0 md:translate-x-0 md:translate-y-0 md:mt-2 md:w-80 md:rounded-lg md:shadow-xl md:p-4">
-                    <div className="flex items-center justify-between border-b border-border pb-2">
-                      <span className="font-bold text-foreground text-sm md:text-xs">Notifications</span>
-                      <button onClick={() => setShowNotifications(false)} className="text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted"><X className="h-4 w-4" /></button>
+                  <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-[340px] rounded-xl border border-[#C5A059]/30 bg-[#121316] text-white shadow-2xl p-4 text-xs space-y-3 z-50 md:absolute md:top-auto md:left-auto md:right-0 md:translate-x-0 md:translate-y-0 md:mt-2 md:w-80 md:rounded-lg md:shadow-xl md:p-4">
+                    <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                      <span className="font-bold text-[#D4AF37] text-sm md:text-xs">Notifications</span>
+                      <button onClick={() => setShowNotifications(false)} className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-white/10"><X className="h-4 w-4" /></button>
                     </div>
 
                     <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
                       {notifications.map((notif) => (
-                        <div key={notif.id} className="p-2.5 border border-border rounded bg-surface-2 flex gap-2 relative group text-left">
-                          <AlertCircle className="h-4 w-4 text-[#1E82A6] shrink-0 mt-0.5" />
+                        <div key={notif.id} className="p-2.5 border border-white/10 rounded bg-white/5 flex gap-2 relative group text-left">
+                          <AlertCircle className="h-4 w-4 text-[#D4AF37] shrink-0 mt-0.5" />
                           <div className="flex-1 min-w-0">
-                            <div className="font-semibold text-foreground truncate">{notif.subject || "Alert"}</div>
-                            <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{notif.body}</p>
+                            <div className="font-semibold text-white truncate">{notif.subject || "Alert"}</div>
+                            <p className="text-[10px] text-gray-300 mt-0.5 leading-tight">{notif.body}</p>
                           </div>
                           <button
                             onClick={(e) => { e.stopPropagation(); clearNotification(notif.id); }}
-                            className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-[#C0262D] transition"
+                            className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-400 transition"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       ))}
                       {notifications.length === 0 && (
-                        <div className="text-muted-foreground italic text-center py-4">No notifications yet.</div>
+                        <div className="text-gray-400 italic text-center py-4">No notifications yet.</div>
                       )}
                     </div>
                   </div>
@@ -342,42 +337,42 @@ function TopBar() {
                 setShowNotifications(false);
               }}
               aria-label="Account menu"
-              className="grid h-9 w-9 place-items-center rounded-full border border-border bg-white text-[#1E82A6] hover:border-[#1E82A6]"
+              className="grid h-9 w-9 place-items-center rounded-full border border-white/20 bg-white/10 text-[#D4AF37] hover:border-[#C5A059]"
             >
               <User className="h-4 w-4" />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-52 rounded-lg border border-border bg-white py-1.5 shadow-xl z-50">
+              <div className="absolute right-0 mt-2 w-52 rounded-lg border border-[#C5A059]/30 bg-[#121316] py-1.5 shadow-2xl z-50 text-gray-200">
                 <Link
                   to="/collection"
                   search={{ autoPush: false }}
                   onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-[#1E82A6]/10 hover:text-[#1E82A6]"
+                  className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-white/10 hover:text-[#D4AF37]"
                 >
-                  <Bookmark className="h-4 w-4 text-[#1E82A6]" />
+                  <Bookmark className="h-4 w-4 text-[#D4AF37]" />
                   <span>Active Workspace</span>
                 </Link>
                 <Link
                   to="/my-collections"
                   onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-[#1E82A6]/10 hover:text-[#1E82A6]"
+                  className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-white/10 hover:text-[#D4AF37]"
                 >
-                  <Bookmark className="h-4 w-4 text-[#C0262D]" />
+                  <Bookmark className="h-4 w-4 text-[#ea580c]" />
                   <span>Collection History</span>
                 </Link>
                 {isAdmin && (
                   <Link
                     to="/admin"
                     onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-[#1E82A6]/10 hover:text-[#1E82A6]"
+                    className="flex items-center gap-2 px-4 py-2 text-sm hover:bg-white/10 hover:text-[#D4AF37]"
                   >
-                    <Shield className="h-4 w-4 text-[#1E82A6]" />
+                    <Shield className="h-4 w-4 text-[#D4AF37]" />
                     <span>Admin Command Center</span>
                   </Link>
                 )}
                 <button
                   onClick={handleSignOut}
-                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-[#C0262D] hover:bg-[#C0262D]/10"
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-400 hover:bg-red-500/10"
                 >
                   <LogOut className="h-4 w-4" />
                   <span>Sign out</span>
@@ -423,20 +418,20 @@ function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-white/95 py-2 backdrop-blur md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[#C5A059]/30 bg-[#0F1115]/95 py-2 backdrop-blur md:hidden">
       <div className="flex justify-around">
         {nav.map((t) => (
           <Link
             key={t.label}
             to={t.to}
             className={`flex flex-col items-center gap-0.5 text-[10px] font-medium transition ${
-              t.active ? "text-[#1E82A6] font-bold" : "text-muted-foreground hover:text-foreground"
+              t.active ? "text-[#ea580c] font-bold" : "text-gray-400 hover:text-white"
             }`}
           >
             <div className="relative">
               <t.icon className="h-5 w-5" />
               {t.label === "Collection" && collectionCount > 0 && (
-                <span className="absolute -top-1.5 -right-2 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#C0262D] text-[8px] font-bold text-white shadow-sm">
+                <span className="absolute -top-1.5 -right-2 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#ea580c] text-[8px] font-bold text-white shadow-sm">
                   +{collectionCount}
                 </span>
               )}
