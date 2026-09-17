@@ -10,6 +10,7 @@ import { generateStandaloneLifestyleImage } from "@/lib/lifestyle-image.function
 import { ImageUploader, ImageTile, publicImageUrl } from "@/components/ImageUploader";
 import { ImageEditorModal } from "@/components/ImageEditorModal";
 import { triggerSitemapUpdate } from "@/lib/seo-publisher";
+import { slugify } from "@/lib/slug";
 
 export const Route = createFileRoute("/_authenticated/admin/products/new")({
   head: () => ({ meta: [{ title: "Create New Product — Admin Panel" }] }),
@@ -52,6 +53,7 @@ function RebuiltNewProductPage() {
   // Uploaded media paths
   const [originalPath, setOriginalPath] = useState<string | null>(null);
   const [installedPath, setInstalledPath] = useState<string | null>(null);
+  const [installationPaths, setInstallationPaths] = useState<string[]>([]);
 
   // Extracted AI Intelligence Object
   const [aiIntelligence, setAiIntelligence] = useState<any>(null);
@@ -66,6 +68,10 @@ function RebuiltNewProductPage() {
     material: "",
     size: "",
     price: "0",
+    original_price: "",
+    pricing_unit: "piece",
+    differentiator_type: "",
+    differentiator_note: "",
     status: "published",
     featured_homepage: false,
     featured_feed: false,
@@ -157,6 +163,10 @@ function RebuiltNewProductPage() {
         material: form.material || null,
         size: form.size || null,
         price: Number(form.price) || 0,
+        original_price: form.original_price ? Number(form.original_price) : null,
+        pricing_unit: form.pricing_unit || "piece",
+        differentiator_type: form.differentiator_type || null,
+        differentiator_note: (form.differentiator_note || "").trim() || null,
         status: "draft",
         processing_state: "pending",
         slug: tempSlug,
@@ -185,10 +195,10 @@ function RebuiltNewProductPage() {
           seo_keywords: seoKw || prev.seo_keywords,
           canonical_slug: d.canonical_slug || prev.canonical_slug,
           search_keywords: searchKw || prev.search_keywords,
-          alternative_terms: Array.isArray(d.alternative_terms) ? d.alternative_terms.join(", ") : (d.alternative_terms || ""),
-          synonyms: Array.isArray(d.synonyms) ? d.synonyms.join(", ") : (d.synonyms || ""),
-          related_terms: Array.isArray(d.related_terms) ? d.related_terms.join(", ") : (d.related_terms || ""),
-          misspellings: Array.isArray(d.misspellings) ? d.misspellings.join(", ") : (d.misspellings || ""),
+          alternative_terms: Array.isArray(d.alternative_names) ? d.alternative_names.join(", ") : (d.alternative_names || prev.alternative_terms),
+          synonyms: Array.isArray(d.customer_search_phrases) ? d.customer_search_phrases.join(", ") : (Array.isArray(d.search_synonyms) ? d.search_synonyms.join(", ") : prev.synonyms),
+          related_terms: Array.isArray(d.related_search_terms) ? d.related_search_terms.join(", ") : (d.related_search_terms || prev.related_terms),
+          misspellings: Array.isArray(d.common_misspellings) ? d.common_misspellings.join(", ") : (d.common_misspellings || prev.misspellings),
         }));
 
         toast.success("Engine 1: Product details generated! Form fields & SEO Description synced!");
@@ -271,8 +281,8 @@ function RebuiltNewProductPage() {
     if (!originalPath) return toast.error("Original Product Image is required.");
 
     setSaving(true);
-    const slugBase = (form.canonical_slug || form.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const slug = `${slugBase}-${Math.random().toString(36).slice(2, 6)}`;
+    const finalCanonicalSlug = slugify(form.canonical_slug) || slugify(form.name);
+    const slug = `${finalCanonicalSlug}-${Math.random().toString(36).slice(2, 6)}`;
 
     const seoKeywordsArray = form.seo_keywords
       ? form.seo_keywords.split(",").map(k => k.trim()).filter(Boolean)
@@ -289,6 +299,25 @@ function RebuiltNewProductPage() {
     const finalStatus = targetStatus || form.status;
     const finalSyncedDesc = form.description.trim() || form.seo_description.trim() || null;
 
+    const masterDoc = {
+      alternative_names: form.alternative_terms ? form.alternative_terms.split(",").map(k => k.trim()).filter(Boolean) : (aiIntelligence?.alternative_names || []),
+      customer_search_phrases: form.synonyms ? form.synonyms.split(",").map(k => k.trim()).filter(Boolean) : (aiIntelligence?.customer_search_phrases || []),
+      search_synonyms: form.synonyms ? form.synonyms.split(",").map(k => k.trim()).filter(Boolean) : (aiIntelligence?.search_synonyms || []),
+      related_search_terms: form.related_terms ? form.related_terms.split(",").map(k => k.trim()).filter(Boolean) : (aiIntelligence?.related_search_terms || []),
+      common_misspellings: form.misspellings ? form.misspellings.split(",").map(k => k.trim()).filter(Boolean) : (aiIntelligence?.common_misspellings || []),
+      product_highlights: aiIntelligence?.product_highlights || [],
+      product_features: aiIntelligence?.product_features || [],
+      product_benefits: aiIntelligence?.product_benefits || [],
+      google_search_tags: aiIntelligence?.google_search_tags || [],
+      google_local_search_terms: aiIntelligence?.google_local_search_terms || [],
+      location_keywords: aiIntelligence?.location_keywords || ["Abuja", "Lagos", "Nigeria", "Dei-Dei Building Materials Market"],
+      showroom_search_index: aiIntelligence?.showroom_search_index || [],
+      seo_keywords: seoKeywordsArray,
+      open_graph_title: aiIntelligence?.open_graph_title || "",
+      open_graph_description: aiIntelligence?.open_graph_description || "",
+      canonical_slug: finalCanonicalSlug,
+    };
+
     const payload = {
       type_id,
       category_id,
@@ -303,6 +332,10 @@ function RebuiltNewProductPage() {
       material: form.material.trim() || null,
       size: form.size.trim() || null,
       price: Number(form.price) || 0,
+      original_price: form.original_price ? Number(form.original_price) : null,
+      pricing_unit: form.pricing_unit || "piece",
+      differentiator_type: form.differentiator_type || null,
+      differentiator_note: (form.differentiator_note || "").trim() || null,
       image_url: originalPath,
       image_mode: isAiMode ? "ai" : "manual",
       status: finalStatus,
@@ -315,7 +348,9 @@ function RebuiltNewProductPage() {
       seo_title: form.seo_title.trim() || null,
       seo_description: finalSyncedDesc,
       seo_keywords: seoKeywordsArray,
-      canonical_slug: form.canonical_slug.trim() || null,
+      canonical_slug: finalCanonicalSlug,
+      master_document: masterDoc,
+      ai_understanding: masterDoc,
       faq: aiIntelligence?.faq || null,
       structured_data: aiIntelligence?.structured_data || null,
       app_keywords: searchKeywordsArray,
@@ -336,22 +371,33 @@ function RebuiltNewProductPage() {
     }
 
     if (data?.id) {
-      await supabase.from("product_assets").insert([
-        {
+      const assetRows = [
+        ...(originalPath ? [{
           product_id: data.id,
           asset_type: "original",
           asset_url: originalPath,
           is_primary: true,
           generated_by_ai: false,
-        },
+        }] : []),
         ...(installedPath ? [{
           product_id: data.id,
           asset_type: "installed",
           asset_url: installedPath,
           is_primary: false,
           generated_by_ai: true,
-        }] : [])
-      ] as any);
+        }] : []),
+        ...installationPaths.map((pUrl) => ({
+          product_id: data.id,
+          asset_type: "installed",
+          asset_url: pUrl,
+          is_primary: false,
+          generated_by_ai: false,
+        }))
+      ];
+
+      if (assetRows.length > 0) {
+        await supabase.from("product_assets").insert(assetRows as any);
+      }
 
       // Rebuild search index & trigger SEO discovery sitemap update
       await supabase.rpc("rebuild_search_index" as any, { _product_id: data.id } as any);
@@ -484,7 +530,7 @@ function RebuiltNewProductPage() {
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Brand</label>
             <input
               type="text"
-              placeholder="e.g. Virony"
+              placeholder="e.g. Virony / Royal"
               value={form.brand}
               onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
               className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
@@ -500,10 +546,40 @@ function RebuiltNewProductPage() {
             />
           </div>
           <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Original Price (NGN)</label>
+            <input
+              type="number"
+              placeholder="Optional regular price"
+              value={form.original_price}
+              onChange={(e) => setForm((f) => ({ ...f, original_price: e.target.value }))}
+              className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Pricing Unit *</label>
+            <select
+              value={form.pricing_unit}
+              onChange={(e) => setForm((f) => ({ ...f, pricing_unit: e.target.value }))}
+              className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+            >
+              <option value="piece">piece</option>
+              <option value="set">set</option>
+              <option value="unit">unit</option>
+              <option value="sqm">sqm (m²)</option>
+              <option value="carton">carton</option>
+              <option value="box">box</option>
+              <option value="metre">metre</option>
+              <option value="roll">roll</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div>
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Size / Dimension</label>
             <input
               type="text"
-              placeholder="e.g. 60x120 cm"
+              placeholder="e.g. 80x50 cm"
               value={form.size}
               onChange={(e) => setForm((f) => ({ ...f, size: e.target.value }))}
               className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
@@ -513,20 +589,17 @@ function RebuiltNewProductPage() {
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Finish</label>
             <input
               type="text"
-              placeholder="e.g. Polished / Matt"
+              placeholder="e.g. Brushed / Nano Matte"
               value={form.finish_name}
               onChange={(e) => setForm((f) => ({ ...f, finish_name: e.target.value }))}
               className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
             />
           </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Material</label>
             <input
               type="text"
-              placeholder="e.g. Porcelain / Marble"
+              placeholder="e.g. Stainless Steel 304 / Ceramic"
               value={form.material}
               onChange={(e) => setForm((f) => ({ ...f, material: e.target.value }))}
               className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
@@ -536,9 +609,47 @@ function RebuiltNewProductPage() {
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Color</label>
             <input
               type="text"
-              placeholder="e.g. White / Grey Veins"
+              placeholder="e.g. Matte Black / Gunmetal"
               value={form.color}
               onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+              className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Differentiator Type</label>
+            <select
+              value={form.differentiator_type}
+              onChange={(e) => setForm((f) => ({ ...f, differentiator_type: e.target.value }))}
+              className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+            >
+              <option value="">None (Standard)</option>
+              <option value="Design Style">Design Style</option>
+              <option value="Material">Material</option>
+              <option value="Finish">Finish</option>
+              <option value="Format">Format</option>
+              <option value="Installation">Installation</option>
+              <option value="Performance">Performance</option>
+              <option value="Function">Function</option>
+              <option value="Collection">Collection</option>
+              <option value="Brand">Brand</option>
+              <option value="Application">Application</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Differentiator Note</label>
+              <span className="text-[9px] text-muted-foreground">{(form.differentiator_note || "").length}/80</span>
+            </div>
+            <input
+              type="text"
+              maxLength={80}
+              placeholder="e.g. Double Bowl Waterfall Tap / Wall-Hung Rimless"
+              value={form.differentiator_note}
+              onChange={(e) => setForm((f) => ({ ...f, differentiator_note: e.target.value }))}
               className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
             />
           </div>
@@ -552,50 +663,70 @@ function RebuiltNewProductPage() {
           <h2 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Section 2 — Images</h2>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Original Image */}
-          <div className="space-y-2">
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Original Manufacturer Image (FIXED SOURCE OF TRUTH) */}
+          <div className="space-y-3 bg-muted/20 border border-border p-4 rounded-xl">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-foreground">Original Manufacturer Image *</label>
-              <span className="text-[10px] text-muted-foreground">Source of Truth</span>
+              <label className="text-xs font-bold uppercase tracking-wider text-amber-600">Original Manufacturer Image *</label>
+              <span className="text-[10px] text-muted-foreground font-semibold">Source of Truth</span>
             </div>
             {originalPath ? (
               <ImageTile
                 url={publicImageUrl(originalPath) || originalPath}
                 onDelete={() => setOriginalPath(null)}
                 onEdit={() => setEditingImage({ url: publicImageUrl(originalPath) || originalPath, target: "original" })}
-                badge="Original"
+                badge="Original Source of Truth"
               />
             ) : (
               <ImageUploader multiple={false} onUploaded={(paths) => setOriginalPath(paths[0])} label="Upload Original Product Image" />
             )}
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              This fixed original manufacturer image is the single source of truth for the product and is never overwritten or turned into a carousel.
+            </p>
           </div>
 
-          {/* Installed Image */}
-          <div className="space-y-2">
+          {/* Installation Images (MULTIPLE SWITCHABLE GALLERY) */}
+          <div className="space-y-3 bg-muted/20 border border-border p-4 rounded-xl">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-foreground">Finished Installation Image</label>
-              <span className="text-[10px] text-muted-foreground">Lifestyle Reference</span>
+              <label className="text-xs font-bold uppercase tracking-wider text-amber-600">Installation Gallery ({installationPaths.length + (installedPath ? 1 : 0)})</label>
+              <span className="text-[10px] text-muted-foreground font-semibold">Multiple Switchable Images</span>
             </div>
-            {installedPath ? (
-              <ImageTile
-                url={publicImageUrl(installedPath) || installedPath}
-                onDelete={() => setInstalledPath(null)}
-                onEdit={() => setEditingImage({ url: publicImageUrl(installedPath) || installedPath, target: "installed" })}
-                badge="Installed Scene"
+
+            {/* List of Installation Images */}
+            <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+              {installedPath && (
+                <ImageTile
+                  url={publicImageUrl(installedPath) || installedPath}
+                  onDelete={() => setInstalledPath(null)}
+                  onEdit={() => setEditingImage({ url: publicImageUrl(installedPath) || installedPath, target: "installed" })}
+                  badge="Primary Installed Scene"
+                />
+              )}
+              {installationPaths.map((pUrl, idx) => (
+                <ImageTile
+                  key={idx}
+                  url={publicImageUrl(pUrl) || pUrl}
+                  onDelete={() => setInstallationPaths((prev) => prev.filter((_, i) => i !== idx))}
+                  badge={`Installation ${idx + 1}`}
+                />
+              ))}
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-border">
+              <ImageUploader
+                multiple={true}
+                onUploaded={(paths) => setInstallationPaths((prev) => Array.from(new Set([...prev, ...paths])))}
+                label="Add Installation Images to Gallery"
               />
-            ) : (
-              <ImageUploader multiple={false} onUploaded={(paths) => setInstalledPath(paths[0])} label="Upload Installed Image" />
-            )}
-            <div className="pt-2">
+
               <button
                 type="button"
                 onClick={handleGenerateLifestyleOnNew}
                 disabled={generatingLifestyle || !originalPath}
-                className="w-full flex items-center justify-center gap-2 rounded border border-primary/30 bg-primary/10 px-4 py-2.5 text-xs font-bold text-primary hover:bg-primary/20 transition disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 rounded border border-primary/30 bg-primary/10 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition disabled:opacity-50"
               >
                 <Sparkles className="h-4 w-4" />
-                {generatingLifestyle ? "Engine 2 Generating Installed Image…" : "Generate Installed Image (Engine 2)"}
+                {generatingLifestyle ? "Engine 2 Generating Installed Image…" : "Generate AI Installed Image (Engine 2)"}
               </button>
             </div>
           </div>
@@ -628,7 +759,7 @@ function RebuiltNewProductPage() {
               type="button"
               onClick={() => create("draft")}
               disabled={saving}
-              className="rounded border border-border px-4 py-2 text-xs font-semibold hover:bg-muted transition"
+              className="rounded-lg border border-[#E5E0D8] bg-white px-4 py-2 text-xs font-semibold text-gray-700 hover:border-[#C5A059] transition"
             >
               Save Draft
             </button>
@@ -636,7 +767,7 @@ function RebuiltNewProductPage() {
               type="button"
               onClick={() => create("published")}
               disabled={saving}
-              className="rounded bg-primary px-5 py-2 text-xs font-bold uppercase tracking-wider text-primary-foreground hover:bg-primary/95 transition shadow-sm"
+              className="rounded-lg bg-[#0F1115] border border-[#C5A059]/50 px-6 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#1A1D24] hover:text-[#D4AF37] transition shadow-md"
             >
               {saving ? "Publishing…" : "Publish Product"}
             </button>
