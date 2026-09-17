@@ -98,6 +98,7 @@ export async function fetchFeedProductsPaginated(
       _q: term,
       _limit: 500,
     } as any);
+
     if (ranked && Array.isArray(ranked)) {
       ranked.forEach((r: any) => { if (r?.product_id) matchedIdSet.add(r.product_id); });
     }
@@ -163,7 +164,7 @@ export async function fetchFeedProductsPaginated(
     if (error) throw error;
 
     const rankOrder = new Map(finalIds.map((id, i) => [id, i] as const));
-    const sorted = ((data ?? []) as ProductRow[]).sort(
+    const sorted = ((data ?? []) as unknown as ProductRow[]).sort(
       (a, b) => (rankOrder.get(a.id) ?? 0) - (rankOrder.get(b.id) ?? 0),
     );
 
@@ -286,7 +287,7 @@ export async function fetchHomepageFeatured(): Promise<ProductRow[]> {
     .order("created_at", { ascending: false })
     .limit(12);
   if (error) throw error;
-  return (data ?? []) as ProductRow[];
+  return (data ?? []) as unknown as ProductRow[];
 }
 
 export async function fetchProductBySlug(slug: string) {
@@ -312,7 +313,7 @@ export async function fetchRelatedProducts(
       .neq("id", excludeId)
       .limit(8);
     if (error) throw error;
-    if ((data ?? []).length) return data as ProductRow[];
+    if ((data ?? []).length) return (data ?? []) as unknown as ProductRow[];
   }
   if (!familyId) return [];
   const { data, error } = await applyPublicFilters(
@@ -322,5 +323,5 @@ export async function fetchRelatedProducts(
     .neq("id", excludeId)
     .limit(8);
   if (error) throw error;
-  return (data ?? []) as ProductRow[];
+  return (data ?? []) as unknown as ProductRow[];
 }
