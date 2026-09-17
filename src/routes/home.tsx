@@ -24,22 +24,23 @@ import {
   ChevronLeft,
   ChevronRight,
   Tv,
-  Film
+  Film,
+  ExternalLink
 } from "lucide-react";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
     meta: [
-      { title: "SOLIDAS TILES AND MARBLE NIG. LIMITED — Architectural Showroom" },
+      { title: "ONIKS365 — Premium Sanitary Ware & Modern Kitchen Solutions" },
       {
         name: "description",
         content:
-          "SOLIDAS TILES AND MARBLE NIG. LIMITED is your trusted supplier of premium tiles, marble, granite, foreign security doors, wooden doors, PVC ceiling and architectural building materials in Abuja.",
+          "ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS — supplying premium sanitary ware, luxury bathroom fittings, and modern kitchen solutions across Nigeria.",
       },
-      { property: "og:title", content: "SOLIDAS — Premium Building Materials Showroom" },
+      { property: "og:title", content: "ONIKS365 — Premium Kitchen & Bathroom Solutions" },
       {
         property: "og:description",
-        content: "Dealers & Suppliers of Tiles, Marble, Granite, Security Doors & Architectural Finishes.",
+        content: "Discover contemporary bathroom fittings, sanitary ware, kitchen solutions, appliances, and smart storage systems designed to elevate modern spaces.",
       },
     ],
   }),
@@ -48,121 +49,80 @@ export const Route = createFileRoute("/home")({
 
 function HomePage() {
   const { data: s } = useAppSettings();
+  const [categories, setCategories] = useState<any[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
+  const [showcaseVideos, setShowcaseVideos] = useState<any[]>([]);
+  const [currentShowcaseIndex, setCurrentShowcaseIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [isMuted, setIsMuted] = useState(true);
+
+  // Form State
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // Hero Videos State
-  const [heroVideos, setHeroVideos] = useState<any[]>([]);
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-
-  // Showcase Video Slider State (Between Instant WA Quotes and Get in Touch)
-  const [showcaseVideos, setShowcaseVideos] = useState<any[]>([]);
-  const [currentShowcaseIndex, setCurrentShowcaseIndex] = useState(0);
-  const [showcaseMuted, setShowcaseMuted] = useState(true);
-  const [showcasePlaying, setShowcasePlaying] = useState(true);
-
-  // Touch gesture state
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  const minSwipeDistance = 50;
-
   useEffect(() => {
-    const fetchVideos = async () => {
+    // 1. Fetch categories
+    const loadCategories = async () => {
       const { data } = await supabase
-        .from("hero_videos")
+        .from("categories")
+        .select("id, name, slug, image_url, code_prefix")
+        .order("name", { ascending: true })
+        .limit(8);
+      if (data) setCategories(data);
+    };
+
+    // 2. Fetch featured luxury products
+    const loadFeatured = async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("id, name, slug, price, code, product_media(url, is_primary)")
+        .eq("is_published", true)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (data) setFeaturedProducts(data);
+    };
+
+    // 3. Fetch showcase media/videos
+    const loadShowcase = async () => {
+      const { data } = await supabase
+        .from("showcase_media")
         .select("*")
-        .eq("is_active", true)
+        .eq("is_published", true)
+        .eq("media_type", "video")
         .order("order_index", { ascending: true });
       if (data && data.length > 0) {
-        setHeroVideos(data);
-      } else {
-        setHeroVideos([
-          { id: "1", url: "https://assets.mixkit.co/videos/preview/mixkit-modern-apartment-interior-design-39908-large.mp4" },
-          { id: "2", url: "https://assets.mixkit.co/videos/preview/mixkit-architectural-model-design-details-39909-large.mp4" },
-          { id: "3", url: "https://assets.mixkit.co/videos/preview/mixkit-spinning-architectural-plans-39910-large.mp4" }
-        ]);
+        setShowcaseVideos(data);
       }
     };
-    void fetchVideos();
+
+    void loadCategories();
+    void loadFeatured();
+    void loadShowcase();
   }, []);
 
-  useEffect(() => {
-    const fetchShowcase = async () => {
-      try {
-        const { data } = await supabase
-          .from("showcase_videos" as any)
-          .select("*")
-          .eq("is_active", true)
-          .order("order_index", { ascending: true });
-
-        if (data && data.length > 0) {
-          setShowcaseVideos(data);
-        } else {
-          setShowcaseVideos([
-            {
-              id: "sc-1",
-              url: "https://assets.mixkit.co/videos/preview/mixkit-interior-of-a-modern-apartment-39907-large.mp4",
-              title: "Luxury Marble & Porcelain Floor Installation"
-            },
-            {
-              id: "sc-2",
-              url: "https://assets.mixkit.co/videos/preview/mixkit-modern-apartment-interior-design-39908-large.mp4",
-              title: "Imported Security & Architectural Doors Showcase"
-            },
-            {
-              id: "sc-3",
-              url: "https://assets.mixkit.co/videos/preview/mixkit-architectural-model-design-details-39909-large.mp4",
-              title: "Precision Granite & Wall Cladding Solutions"
-            }
-          ]);
-        }
-      } catch (err) {
-        console.warn("Notice loading showcase videos:", err);
-      }
-    };
-    void fetchShowcase();
-  }, []);
-
-  const handleShowcaseVideoEnded = () => {
-    setCurrentShowcaseIndex((prev) => (prev + 1) % Math.max(1, showcaseVideos.length));
+  const handleNextShowcase = () => {
+    if (showcaseVideos.length === 0) return;
+    setCurrentShowcaseIndex((prev) => (prev + 1) % showcaseVideos.length);
   };
 
-  const handleVideoEnded = () => {
-    setCurrentVideoIndex((prev) => (prev + 1) % heroVideos.length);
+  const handlePrevShowcase = () => {
+    if (showcaseVideos.length === 0) return;
+    setCurrentShowcaseIndex((prev) => (prev - 1 + showcaseVideos.length) % showcaseVideos.length);
   };
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-    if (isLeftSwipe) {
-      setCurrentVideoIndex((prev) => (prev + 1) % heroVideos.length);
-    } else if (isRightSwipe) {
-      setCurrentVideoIndex((prev) => (prev - 1 + heroVideos.length) % heroVideos.length);
-    }
-  };
-
-  const submit = async (e: React.FormEvent) => {
+  const submitQuickQuote = (e: React.FormEvent) => {
     e.preventDefault();
-    const targetWa = s?.sales_whatsapp || "2348035186355";
     setBusy(true);
     try {
-      const msg = `Hello SOLIDAS! My name is ${name}. Please contact me regarding building materials at ${phone}.`;
-      window.open(waLink(targetWa, msg), "_blank", "noopener,noreferrer");
-      toast.success("Opening WhatsApp Sales Inquiry…");
+      const targetWa = s?.sales_whatsapp || "2348035186355";
+      const text = `Hello ONIKS365! My name is ${name}. I am requesting a personalized consultation & catalog for modern kitchen solutions and bathroom fittings. (Phone: ${phone})`;
+      window.open(waLink(targetWa, text), "_blank", "noopener,noreferrer");
+      toast.success("Connecting with an ONIKS365 Consultant…");
       setName("");
       setPhone("");
+    } catch {
+      toast.error("Could not launch WhatsApp");
     } finally {
       setBusy(false);
     }
@@ -170,128 +130,222 @@ function HomePage() {
 
   return (
     <AppShell>
-      {/* Hero Architectural Banner */}
-      <section
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        className="relative w-full h-[70vh] min-h-[500px] overflow-hidden bg-slate-950"
-      >
-        {heroVideos.length > 0 && (
-          <div className="absolute inset-0 w-full h-full">
-            <video
-              key={heroVideos[currentVideoIndex]?.id || currentVideoIndex}
-              autoPlay
-              muted
-              playsInline
-              onEnded={handleVideoEnded}
-              className="w-full h-full object-cover transition-all duration-700 opacity-75"
-              src={heroVideos[currentVideoIndex]?.url}
-              preload="auto"
-            />
-            {/* Architectural Dark Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-slate-950/20" />
-          </div>
-        )}
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#0B0C0E] via-[#121316] to-[#1A1D24] text-white py-16 sm:py-24 border-b border-[#C5A059]/30">
+        {/* Background glow effects */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#ea580c]/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Content Overlays */}
-        <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-14 text-white">
-          <div className="max-w-3xl space-y-4">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.25em] backdrop-blur">
-              <Sparkles className="h-3.5 w-3.5 text-[#1E82A6]" /> Architectural Materials Showroom
-            </span>
+        <div className="container-app relative z-10 grid gap-12 lg:grid-cols-12 items-center">
+          <div className="lg:col-span-7 space-y-6">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#C5A059]/40 bg-[#C5A059]/10 px-3.5 py-1 text-xs font-bold text-[#D4AF37] uppercase tracking-wider backdrop-blur">
+              <Sparkles className="h-3.5 w-3.5 text-[#D4AF37]" />
+              Luxury Kitchen & Bathroom Showroom
+            </div>
 
-            <h1 className="font-display text-4xl sm:text-6xl font-extrabold leading-none tracking-tight text-white uppercase">
-              SOLIDAS
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.15] uppercase">
+              Elevate Your Space with <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#D4AF37] via-[#F3E5AB] to-[#C5A059]">Modern Luxury</span>
             </h1>
-            <p className="font-display text-lg sm:text-2xl text-[#1E82A6] font-bold">
-              SOLIDAS TILES AND MARBLE NIG. LIMITED
-            </p>
-            <p className="text-xs sm:text-sm text-gray-200 max-w-xl leading-relaxed">
-              Dealers & Suppliers of General Building Materials: Premium Tiles, Marble, Granite, Crack Tiles, Foreign Security Doors, Wooden Doors, PVC Ceilings & General Contracts.
+
+            <p className="text-sm sm:text-base text-gray-300 max-w-xl leading-relaxed">
+              ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS delivers curated collections of premium sanitary ware, modern kitchen solutions, designer faucets, and smart appliances engineered for lasting distinction.
             </p>
 
-            <div className="flex flex-wrap gap-3 pt-3">
+            <div className="flex flex-wrap gap-4 pt-2">
               <Link
-                to="/search"
-                search={{ q: "" }}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#C0262D] px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#9A1B21] transition shadow-lg"
+                to="/"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#C5A059] to-[#D4AF37] px-6 py-3.5 text-sm font-bold text-[#0B0C0E] shadow-lg shadow-amber-500/20 hover:brightness-110 transition active:scale-95"
               >
-                <Compass className="h-4 w-4" /> Explore Digital Showroom <ArrowRight className="h-4 w-4" />
+                <Compass className="h-4 w-4" />
+                <span>Explore Live Showroom</span>
               </Link>
               <Link
                 to="/collection"
-                className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 backdrop-blur px-6 py-3.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/20 transition"
+                search={{ autoPush: false }}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/5 px-6 py-3.5 text-sm font-bold text-white hover:bg-white/10 hover:border-white/40 transition backdrop-blur"
               >
-                <Bookmark className="h-4 w-4 text-[#1E82A6]" /> Project Collections
+                <Bookmark className="h-4 w-4 text-[#D4AF37]" />
+                <span>My Project Workspace</span>
               </Link>
             </div>
+
+            {/* Quick Metrics */}
+            <div className="grid grid-cols-3 gap-4 pt-6 border-t border-white/10 max-w-lg">
+              <div>
+                <div className="font-display text-2xl font-bold text-[#D4AF37]">100%</div>
+                <div className="text-[11px] text-gray-400 font-medium">Authentic Sanitary Ware</div>
+              </div>
+              <div>
+                <div className="font-display text-2xl font-bold text-[#D4AF37]">Abuja & Lagos</div>
+                <div className="text-[11px] text-gray-400 font-medium">Physical Distribution Hubs</div>
+              </div>
+              <div>
+                <div className="font-display text-2xl font-bold text-[#D4AF37]">Nationwide</div>
+                <div className="text-[11px] text-gray-400 font-medium">Secure Delivery</div>
+              </div>
+            </div>
           </div>
 
-          {/* Carousel Navigation Indicators */}
-          {heroVideos.length > 1 && (
-            <div className="absolute bottom-6 right-6 sm:right-14 flex gap-2 z-10">
-              {heroVideos.map((_, i) => (
+          {/* Hero Form / Quick Consultation Box */}
+          <div className="lg:col-span-5">
+            <div className="rounded-2xl border border-[#C5A059]/40 bg-[#121316]/90 p-6 sm:p-8 shadow-2xl backdrop-blur relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-[#ea580c]/10 rounded-full blur-2xl pointer-events-none" />
+              
+              <div className="space-y-2 mb-6">
+                <h3 className="font-display text-xl font-bold text-white uppercase tracking-wide">
+                  Request Project Consultation
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Building or renovating? Speak with our product specialists and receive an itemized quote on WhatsApp.
+                </p>
+              </div>
+
+              <form onSubmit={submitQuickQuote} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                    Your Full Name
+                  </label>
+                  <input
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Arc. Johnson or Engr. Musa"
+                    className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none focus:border-[#C5A059] focus:bg-white/10 transition"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                    WhatsApp Phone Number
+                  </label>
+                  <input
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="e.g. 0803 123 4567"
+                    className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none focus:border-[#C5A059] focus:bg-white/10 transition"
+                  />
+                </div>
+
                 <button
-                  key={i}
-                  onClick={() => setCurrentVideoIndex(i)}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    currentVideoIndex === i ? "w-8 bg-[#1E82A6]" : "w-2 bg-white/40"
-                  }`}
-                  aria-label={`Slide ${i + 1}`}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
+                  type="submit"
+                  disabled={busy}
+                  className="w-full rounded-lg bg-gradient-to-r from-[#25D366] to-[#1EBE5D] px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-900/30 hover:brightness-105 transition disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  <span>{busy ? "Opening WhatsApp…" : "Chat with Specialist Now"}</span>
+                </button>
+              </form>
 
-      {/* Trust & Company Highlights */}
-      <section className="bg-white border-b border-border py-8">
-        <div className="container-app grid gap-6 sm:grid-cols-3">
-          <div className="flex items-start gap-4 p-4 rounded-xl border border-border bg-surface-2">
-            <Building2 className="h-8 w-8 text-[#1E82A6] shrink-0" />
-            <div>
-              <h4 className="font-bold text-sm text-foreground">Direct Wholesale Supplier</h4>
-              <p className="text-xs text-muted-foreground mt-1">Direct importer & dealer in premium architectural tiles, marble, and foreign doors.</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4 p-4 rounded-xl border border-border bg-surface-2">
-            <ShieldCheck className="h-8 w-8 text-[#C0262D] shrink-0" />
-            <div>
-              <h4 className="font-bold text-sm text-foreground">Verified RC: 1218629</h4>
-              <p className="text-xs text-muted-foreground mt-1">Officially registered Nigerian company operating out of Dei Dei Building Materials Market, Abuja.</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4 p-4 rounded-xl border border-border bg-surface-2">
-            <MessageCircle className="h-8 w-8 text-[#1E82A6] shrink-0" />
-            <div>
-              <h4 className="font-bold text-sm text-foreground">Instant WhatsApp Quotes</h4>
-              <p className="text-xs text-muted-foreground mt-1">Curate your project lookbook and receive formatted WhatsApp quotes instantly.</p>
+              <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between text-[11px] text-gray-400">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-[#D4AF37]" /> Verified CAC Registered
+                </span>
+                <span>Dei-Dei Abuja • Coker Lagos</span>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SOLIDAS Showcase Video Slider (Continuous Showcase) */}
+      {/* Categories Grid (Kitchen & Bathroom Focus) */}
+      <section className="container-app py-16 space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E5E0D8] pb-4">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#ea580c]">
+              Curated Collections
+            </span>
+            <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-[#0F1115] uppercase tracking-tight mt-1">
+              Explore by Category
+            </h2>
+          </div>
+          <Link
+            to="/"
+            className="text-xs font-bold text-[#ea580c] hover:text-amber-700 inline-flex items-center gap-1.5 transition"
+          >
+            <span>View All Categories</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          {categories.map((cat) => (
+            <Link
+              key={cat.id}
+              to="/"
+              search={{ category: cat.slug }}
+              className="group relative overflow-hidden rounded-xl border border-[#E5E0D8] bg-[#FAF8F5] p-4 sm:p-5 transition-all duration-300 hover:shadow-xl hover:border-[#C5A059] hover:-translate-y-1"
+            >
+              <div className="aspect-square w-full rounded-lg overflow-hidden bg-white mb-3 flex items-center justify-center border border-[#E5E0D8]/60">
+                {cat.image_url ? (
+                  <img
+                    src={cat.image_url}
+                    alt={cat.name}
+                    className="h-full w-full object-cover group-hover:scale-105 transition duration-500"
+                  />
+                ) : (
+                  <div className="text-gray-300 font-display font-bold text-xs uppercase tracking-widest text-center px-2">
+                    {cat.name}
+                  </div>
+                )}
+              </div>
+              <h3 className="font-bold text-sm text-[#0F1115] group-hover:text-[#ea580c] transition line-clamp-1">
+                {cat.name}
+              </h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Browse Fittings & Sinks
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Trust Pillars */}
+      <section className="bg-white border-y border-[#E5E0D8] py-12">
+        <div className="container-app grid gap-8 md:grid-cols-3">
+          <div className="flex items-start gap-4 p-4 rounded-xl border border-[#E5E0D8] bg-[#FAF8F5]">
+            <Building2 className="h-8 w-8 text-[#ea580c] shrink-0" />
+            <div>
+              <h4 className="font-bold text-sm text-[#0F1115]">Premium Kitchen & Bathroom Solutions</h4>
+              <p className="text-xs text-muted-foreground mt-1">Direct supplier of luxury sanitary ware, bathroom fittings, appliances, and space-saving kitchen storage.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4 p-4 rounded-xl border border-[#E5E0D8] bg-[#FAF8F5]">
+            <ShieldCheck className="h-8 w-8 text-[#D4AF37] shrink-0" />
+            <div>
+              <h4 className="font-bold text-sm text-[#0F1115]">CAC Registered Company</h4>
+              <p className="text-xs text-muted-foreground mt-1">Officially registered Nigerian entity (ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS) serving Abuja, Lagos & nationwide.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4 p-4 rounded-xl border border-[#E5E0D8] bg-[#FAF8F5]">
+            <MessageCircle className="h-8 w-8 text-[#ea580c] shrink-0" />
+            <div>
+              <h4 className="font-bold text-sm text-[#0F1115]">Instant WhatsApp Consultation</h4>
+              <p className="text-xs text-muted-foreground mt-1">Curate your project lookbook and receive formatted WhatsApp quotes instantly from our team.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Showcase Video Slider (Continuous Showcase) */}
       {showcaseVideos.length > 0 && (
-        <section className="bg-slate-950 text-white py-12 border-y border-slate-800 shadow-2xl relative overflow-hidden">
+        <section className="bg-[#0B0C0E] text-white py-12 border-y border-[#C5A059]/30 shadow-2xl relative overflow-hidden">
           {/* Ambient Background Glow */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-[#1E82A6]/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="container-app space-y-6 relative z-10">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-white/10 pb-4">
               <div>
-                <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.25em] text-[#1E82A6]">
-                  <Film className="h-3.5 w-3.5 text-[#C0262D]" /> Architectural Showcase Reel
+                <div className="flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-[0.25em] text-[#D4AF37]">
+                  <Film className="h-3.5 w-3.5 text-[#D4AF37]" /> Digital Showcase Reel
                 </div>
                 <h3 className="font-display text-2xl sm:text-3xl font-extrabold text-white uppercase tracking-tight mt-1">
-                  SOLIDAS Video Showcase
+                  ONIKS365 Video Showcase
                 </h3>
               </div>
               <p className="text-xs text-slate-400 max-w-md">
-                Watch our latest product videos, showroom installations, imported doors, and premium marble craftsmanship.
+                Watch our product videos, luxury WCs, smart showers, kitchen sinks, built-in ovens, and modern storage systems.
               </p>
             </div>
 
@@ -299,219 +353,229 @@ function HomePage() {
             <div className="relative w-full aspect-video max-h-[550px] rounded-2xl overflow-hidden bg-slate-900 border border-white/15 shadow-2xl group">
               <video
                 key={showcaseVideos[currentShowcaseIndex]?.id || currentShowcaseIndex}
-                autoPlay={showcasePlaying}
-                muted={showcaseMuted}
+                src={showcaseVideos[currentShowcaseIndex]?.media_url}
+                poster={showcaseVideos[currentShowcaseIndex]?.thumbnail_url}
+                autoPlay
                 playsInline
-                onEnded={handleShowcaseVideoEnded}
-                className="w-full h-full object-cover transition-all duration-700"
-                src={showcaseVideos[currentShowcaseIndex]?.url}
-                preload="auto"
+                loop
+                muted={isMuted}
+                className="w-full h-full object-cover"
               />
 
-              {/* Gradient Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-slate-950/30 pointer-events-none" />
-
-              {/* Top Title Overlay Badge */}
-              <div className="absolute top-4 left-4 sm:top-6 sm:left-6 flex items-center gap-2.5 z-10">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C0262D] px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-md">
-                  <Tv className="h-3 w-3" /> Video #{currentShowcaseIndex + 1} of {showcaseVideos.length}
+              {/* Title & Overlay Information */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none" />
+              
+              <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+                <span className="bg-[#C5A059] text-black text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full shadow">
+                  Showcase {currentShowcaseIndex + 1} of {showcaseVideos.length}
                 </span>
-                {showcaseVideos[currentShowcaseIndex]?.title && (
-                  <span className="hidden sm:inline-block rounded-full bg-slate-900/80 border border-white/20 px-3.5 py-1 text-xs font-bold text-slate-200 backdrop-blur">
-                    {showcaseVideos[currentShowcaseIndex].title}
-                  </span>
-                )}
+                <span className="text-xs font-semibold text-white drop-shadow">
+                  {showcaseVideos[currentShowcaseIndex]?.title}
+                </span>
               </div>
 
-              {/* Center Play/Pause Button */}
-              <button
-                onClick={() => setShowcasePlaying((p) => !p)}
-                className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 backdrop-blur-2xs"
-                aria-label={showcasePlaying ? "Pause Video" : "Play Video"}
-              >
-                <div className="rounded-full bg-slate-900/90 border border-white/30 p-4 text-white shadow-xl hover:scale-110 transition-transform">
-                  {showcasePlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6 text-[#1E82A6] fill-[#1E82A6] ml-0.5" />}
-                </div>
-              </button>
-
-              {/* Bottom Control Strip */}
-              <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 flex items-center justify-between z-10">
+              {/* Controls Bar */}
+              <div className="absolute bottom-4 left-4 right-4 z-10 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setShowcaseMuted((m) => !m)}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-slate-900/80 border border-white/20 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/20 transition backdrop-blur"
+                    onClick={() => setIsMuted(!isMuted)}
+                    className="p-2.5 rounded-full bg-black/60 hover:bg-[#C5A059] hover:text-black text-white backdrop-blur transition shadow"
+                    title={isMuted ? "Unmute" : "Mute"}
                   >
-                    {showcaseMuted ? <VolumeX className="h-4 w-4 text-[#C0262D]" /> : <Volume2 className="h-4 w-4 text-[#1E82A6]" />}
-                    <span className="hidden sm:inline text-[10px]">{showcaseMuted ? "Unmute" : "Mute"}</span>
+                    {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
                   </button>
+                  <span className="text-[11px] text-gray-300 font-medium">
+                    {isMuted ? "Click to Unmute Sound" : "Audio Active"}
+                  </span>
                 </div>
 
-                {/* Slider Dot Indicators */}
-                <div className="flex items-center gap-1.5">
-                  {showcaseVideos.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setCurrentShowcaseIndex(idx)}
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        currentShowcaseIndex === idx ? "w-6 bg-[#1E82A6]" : "w-2 bg-white/40 hover:bg-white/70"
-                      }`}
-                      aria-label={`Go to video ${idx + 1}`}
-                    />
-                  ))}
-                </div>
-
-                {/* Arrow Controls */}
-                <div className="flex items-center gap-1.5">
+                {/* Slider navigation */}
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() =>
-                      setCurrentShowcaseIndex(
-                        (prev) => (prev - 1 + showcaseVideos.length) % showcaseVideos.length
-                      )
-                    }
-                    className="p-2 rounded-full bg-slate-900/80 border border-white/20 text-white hover:bg-white/20 transition backdrop-blur"
-                    aria-label="Previous Video"
+                    onClick={handlePrevShowcase}
+                    className="p-2.5 rounded-full bg-black/60 hover:bg-[#C5A059] hover:text-black text-white backdrop-blur transition shadow"
+                    title="Previous Video"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() =>
-                      setCurrentShowcaseIndex((prev) => (prev + 1) % showcaseVideos.length)
-                    }
-                    className="p-2 rounded-full bg-slate-900/80 border border-white/20 text-white hover:bg-white/20 transition backdrop-blur"
-                    aria-label="Next Video"
+                    onClick={handleNextShowcase}
+                    className="p-2.5 rounded-full bg-black/60 hover:bg-[#C5A059] hover:text-black text-white backdrop-blur transition shadow"
+                    title="Next Video"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
               </div>
             </div>
+
+            {/* Video Thumbnail Selector */}
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none">
+              {showcaseVideos.map((v, idx) => (
+                <button
+                  key={v.id || idx}
+                  onClick={() => setCurrentShowcaseIndex(idx)}
+                  className={`relative shrink-0 w-28 sm:w-36 aspect-video rounded-lg overflow-hidden border-2 transition ${
+                    idx === currentShowcaseIndex
+                      ? "border-[#D4AF37] ring-2 ring-[#D4AF37]/50"
+                      : "border-white/20 opacity-60 hover:opacity-100"
+                  }`}
+                >
+                  <img
+                    src={v.thumbnail_url || "/placeholder.svg"}
+                    alt={v.title || `Video ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                    <Play className="h-3 w-3 text-white fill-white" />
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </section>
       )}
 
-      {/* Company / Contact Section */}
-      <section className="container-app mt-12">
-        <div className="text-center max-w-xl mx-auto mb-8 space-y-2">
-          <h2 className="font-display text-xs uppercase tracking-[0.2em] font-bold text-[#1E82A6]">
-            Get In Touch With SOLIDAS
-          </h2>
-          <h3 className="font-display text-3xl font-extrabold text-foreground">Visit Our Showrooms & Offices</h3>
-          <p className="text-xs text-muted-foreground">
-            Contact our building material specialists for samples, project quantities, or site delivery quotes.
-          </p>
+      {/* Featured Luxury Pieces Grid */}
+      <section className="container-app py-16 space-y-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E5E0D8] pb-4">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#ea580c]">
+              Direct Showroom Inventory
+            </span>
+            <h2 className="font-display text-2xl sm:text-3xl font-extrabold text-[#0F1115] uppercase tracking-tight mt-1">
+              Featured Luxury Highlights
+            </h2>
+          </div>
+          <Link
+            to="/"
+            className="text-xs font-bold text-[#ea580c] hover:text-amber-700 inline-flex items-center gap-1.5 transition"
+          >
+            <span>Browse Full Catalog</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-2 pb-4">
-          <div className="space-y-4">
-            {s?.map_url ? (
-              <a
-                href={s.map_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block rounded-xl border border-border bg-white p-5 shadow-xs space-y-3 hover:border-[#C0262D] transition group"
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {featuredProducts.map((p) => {
+            const primaryImg = p.product_media?.find((m: any) => m.is_primary)?.url || p.product_media?.[0]?.url;
+            return (
+              <Link
+                key={p.id}
+                to="/product/$slug"
+                params={{ slug: p.slug }}
+                className="group flex flex-col justify-between rounded-xl border border-[#E5E0D8] bg-white p-3 shadow-xs hover:border-[#C5A059] hover:shadow-lg transition"
               >
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-6 w-6 text-[#C0262D] shrink-0 group-hover:scale-110 transition-transform" />
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#C0262D]">Head Office (Click for Map)</span>
-                    <div className="font-bold text-sm text-foreground group-hover:text-[#C0262D] transition">Plot 469, Solidas Plaza</div>
-                    <p className="text-xs text-muted-foreground">Saburi District Opp Timber Shed Dei Dei Building Material Mkt. FCT - Abuja</p>
-                  </div>
-                </div>
-              </a>
-            ) : (
-              <div className="rounded-xl border border-border bg-white p-5 shadow-xs space-y-3">
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-6 w-6 text-[#C0262D] shrink-0" />
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#C0262D]">Head Office</span>
-                    <div className="font-bold text-sm text-foreground">Plot 469, Solidas Plaza</div>
-                    <p className="text-xs text-muted-foreground">Saburi District Opp Timber Shed Dei Dei Building Material Mkt. FCT - Abuja</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {s?.map_url ? (
-              <a
-                href={s.map_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block rounded-xl border border-border bg-white p-5 shadow-xs space-y-3 hover:border-[#1E82A6] transition group"
-              >
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-6 w-6 text-[#1E82A6] shrink-0 group-hover:scale-110 transition-transform" />
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#1E82A6]">Branch Office (Click for Map)</span>
-                    <div className="font-bold text-sm text-foreground group-hover:text-[#1E82A6] transition">Shop 819 C2 Extension</div>
-                    <p className="text-xs text-muted-foreground">Int'l Building Material Mkt Dei Dei, FCT Abuja</p>
-                  </div>
-                </div>
-              </a>
-            ) : (
-              <div className="rounded-xl border border-border bg-white p-5 shadow-xs space-y-3">
-                <div className="flex items-center gap-3">
-                  <MapPin className="h-6 w-6 text-[#1E82A6] shrink-0" />
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#1E82A6]">Branch Office</span>
-                    <div className="font-bold text-sm text-foreground">Shop 819 C2 Extension</div>
-                    <p className="text-xs text-muted-foreground">Int'l Building Material Mkt Dei Dei, FCT Abuja</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="rounded-xl border border-border bg-white p-5 shadow-xs space-y-3">
-              <div className="flex items-center gap-3">
-                <Phone className="h-6 w-6 text-[#1E82A6] shrink-0" />
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#1E82A6]">Telephone Lines</span>
-                  <div className="font-bold text-sm text-foreground">0803 518 6355 | 0815 149 5663 | 0904 032 7777</div>
+                  <div className="aspect-square w-full rounded-lg bg-[#FAF8F5] overflow-hidden mb-2.5 relative border border-[#E5E0D8]/40">
+                    {primaryImg ? (
+                      <img
+                        src={primaryImg}
+                        alt={p.name}
+                        className="h-full w-full object-cover group-hover:scale-105 transition duration-300"
+                      />
+                    ) : (
+                      <div className="h-full w-full flex items-center justify-center text-[10px] text-gray-400 font-bold uppercase">
+                        No Image
+                      </div>
+                    )}
+                    {p.code && (
+                      <span className="absolute top-1.5 left-1.5 rounded bg-black/70 px-1.5 py-0.5 font-mono text-[9px] font-bold text-[#D4AF37] backdrop-blur">
+                        {p.code}
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="font-bold text-xs text-[#0F1115] line-clamp-2 group-hover:text-[#ea580c] transition">
+                    {p.name}
+                  </h4>
                 </div>
+                <div className="mt-3 pt-2 border-t border-[#E5E0D8] flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-[#D4AF37]">
+                    {p.price > 0 ? `₦${Number(p.price).toLocaleString()}` : "Price On Request"}
+                  </span>
+                  <span className="text-[10px] font-bold text-[#ea580c] group-hover:translate-x-0.5 transition">
+                    →
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Showroom Visit / Locations CTA */}
+      <section className="bg-[#FAF8F5] border-t border-[#E5E0D8] py-16">
+        <div className="container-app grid gap-12 lg:grid-cols-2 items-center">
+          <div className="space-y-6">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#ea580c]">
+              Physical Distribution Hubs
+            </span>
+            <h2 className="font-display text-3xl sm:text-4xl font-extrabold text-[#0F1115] uppercase tracking-tight">
+              Visit Our Experience Centers in Abuja & Lagos
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              We welcome architects, builders, interior designers, and discerning homeowners to inspect our fixtures in person. Experience the tactile weight and water-flow mechanics of our luxury fittings before purchase.
+            </p>
+
+            <div className="space-y-4 pt-2">
+              <div className="p-4 rounded-xl border border-[#E5E0D8] bg-white space-y-1">
+                <div className="flex items-center gap-2 font-bold text-sm text-[#0F1115]">
+                  <MapPin className="h-4 w-4 text-[#ea580c]" /> Abuja Showroom & Warehouse
+                </div>
+                <p className="text-xs text-muted-foreground pl-6">
+                  {s?.company_address || "69/243 Cornershop International Building Materials Market, Dei-Dei, Abuja FCT, Nigeria"}
+                </p>
+              </div>
+
+              <div className="p-4 rounded-xl border border-[#E5E0D8] bg-white space-y-1">
+                <div className="flex items-center gap-2 font-bold text-sm text-[#0F1115]">
+                  <Building2 className="h-4 w-4 text-[#ea580c]" /> Lagos Commercial Distribution Hub
+                </div>
+                <p className="text-xs text-muted-foreground pl-6">
+                  Odunade Building Materials Market, Coker, Orile, Badagry Expressway, Lagos, Nigeria
+                </p>
               </div>
             </div>
 
-            {s?.company_email && (
-              <div className="rounded-xl border border-border bg-white p-5 shadow-xs space-y-3">
-                <div className="flex items-center gap-3">
-                  <Mail className="h-6 w-6 text-[#1E82A6] shrink-0" />
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#1E82A6]">Email Inquiry</span>
-                    <div className="font-bold text-sm text-foreground">{s.company_email}</div>
-                  </div>
-                </div>
-              </div>
-            )}
+            <div className="pt-2">
+              <Link
+                to="/contact"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#0F1115] px-6 py-3.5 text-xs font-bold text-white hover:bg-[#1A1D24] hover:text-[#D4AF37] transition shadow"
+              >
+                <Phone className="h-4 w-4 text-[#D4AF37]" />
+                <span>Contact Showroom Reps</span>
+              </Link>
+            </div>
           </div>
 
-          <form
-            onSubmit={submit}
-            className="rounded-xl border border-border bg-white p-6 shadow-sm flex flex-col justify-between"
-          >
+          {/* Quick Inquiry Form */}
+          <form onSubmit={submitQuickQuote} className="rounded-2xl border border-[#E5E0D8] bg-white p-6 sm:p-8 shadow-md">
             <div>
-              <h3 className="font-display text-xl font-bold text-foreground">Request Architectural Callback</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Enter your details to initiate a WhatsApp order or material consultation with SOLIDAS sales team.
+              <h3 className="font-display text-lg font-bold text-[#0F1115] uppercase">
+                Schedule a Private Walkthrough
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Let us prepare spec sheets and samples prior to your arrival at our showroom.
               </p>
               <div className="mt-5 space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Your Full Name</label>
+                  <label className="block text-xs font-bold text-[#0F1115] mb-1">Your Full Name</label>
                   <input
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Chief Japhet / Engr. Musa"
-                    className="w-full rounded-lg border border-border bg-surface-2 px-3.5 py-2.5 text-sm outline-none focus:border-[#1E82A6] focus:bg-white"
+                    placeholder="Full Name / Company"
+                    className="w-full rounded-lg border border-[#E5E0D8] bg-[#FAF8F5] px-3.5 py-2.5 text-sm outline-none focus:border-[#C5A059] focus:bg-white"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Phone / WhatsApp Number</label>
+                  <label className="block text-xs font-bold text-[#0F1115] mb-1">Phone / WhatsApp Number</label>
                   <input
                     required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g. 0803 123 4567"
-                    className="w-full rounded-lg border border-border bg-surface-2 px-3.5 py-2.5 text-sm outline-none focus:border-[#1E82A6] focus:bg-white"
+                    placeholder="Phone Number"
+                    className="w-full rounded-lg border border-[#E5E0D8] bg-[#FAF8F5] px-3.5 py-2.5 text-sm outline-none focus:border-[#C5A059] focus:bg-white"
                   />
                 </div>
               </div>
@@ -520,7 +584,7 @@ function HomePage() {
             <div className="mt-6">
               <button
                 disabled={busy}
-                className="w-full rounded-lg bg-[#C0262D] px-5 py-3 text-sm font-bold text-white hover:bg-[#9A1B21] disabled:opacity-60 transition shadow-sm"
+                className="w-full rounded-lg bg-[#0F1115] border border-[#C5A059]/40 px-5 py-3 text-sm font-bold text-white hover:bg-[#1A1D24] hover:text-[#D4AF37] disabled:opacity-60 transition shadow-sm"
               >
                 {busy ? "Connecting…" : "Send WhatsApp Request"}
               </button>
