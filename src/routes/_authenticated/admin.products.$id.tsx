@@ -7,6 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { runProductPipeline } from "@/lib/ai-pipeline.functions";
 import { generateStandaloneLifestyleImage } from "@/lib/lifestyle-image.functions";
 import { runProductDetailsEngine } from "@/lib/product-details.functions";
+import { slugify } from "@/lib/slug";
 import { ImageUploader, ImageTile, publicImageUrl } from "@/components/ImageUploader";
 import { ImageEditorModal } from "@/components/ImageEditorModal";
 import { triggerSitemapUpdate } from "@/lib/seo-publisher";
@@ -48,12 +49,53 @@ function RebuiltEditProductPage() {
   const generateLifestyleFn = useServerFn(generateStandaloneLifestyleImage);
   const runPipelineFn = useServerFn(runProductPipeline);
 
+  const [installationAssets, setInstallationAssets] = useState<any[]>([]);
+
   const load = useCallback(async () => {
-    const { data, error } = await supabase.from("products").select("*").eq("id", id).maybeSingle();
-    if (error) return toast.error(error.message);
-    if (!data) return toast.error("Product not found");
+    const [pRes, assetsRes] = await Promise.all([
+      supabase.from("products").select("*").eq("id", id).maybeSingle(),
+      supabase.from("product_assets").select("*").eq("product_id", id).eq("asset_type", "installed").order("created_at", { ascending: false }),
+    ]);
+
+    if (pRes.error) return toast.error(pRes.error.message);
+    if (!pRes.data) return toast.error("Product not found");
+    const data = pRes.data;
+    if (!data.canonical_slug && data.name) {
+      data.canonical_slug = slugify(data.name);
+    }
+    if (!data.master_document?.alternative_names || data.master_document.alternative_names.length === 0) {
+      const fallbackAlts = data.ai_understanding?.alternative_names && data.ai_understanding.alternative_names.length > 0
+        ? data.ai_understanding.alternative_names
+        : [];
+      if (fallbackAlts.length > 0) {
+        data.master_document = { ...(data.master_document || {}), alternative_names: fallbackAlts };
+      }
+    }
     setP(data);
+    setInstallationAssets(assetsRes.data || []);
   }, [id]);
+
+  const handleAddInstallationImages = async (paths: string[]) => {
+    for (const path of paths) {
+      await supabase.from("product_assets").insert({
+        product_id: id,
+        asset_type: "installed",
+        asset_url: path,
+        generated_by_ai: false,
+      });
+      if (!p.generated_installed_image) {
+        await supabase.from("products").update({ generated_installed_image: path } as any).eq("id", id);
+      }
+    }
+    toast.success("Added installation images!");
+    await load();
+  };
+
+  const handleDeleteInstallationAsset = async (assetId: string) => {
+    await supabase.from("product_assets").delete().eq("id", assetId);
+    toast.success("Removed installation image");
+    await load();
+  };
 
   useEffect(() => {
     load();
@@ -122,11 +164,11 @@ function RebuiltEditProductPage() {
     setGeneratingLifestyle(true);
     try {
       const res = await generateLifestyleFn({ data: { productId: id } });
-      if (res.ok) {
-        toast.success("Engine 2: Installed lifestyle image generated!");
+      if (res.ok && res.imageUrl) {
+        toast.success("Engine 2: Installed lifestyle photo generated!");
         await load();
       } else {
-        toast.error("Failed to generate installed image.");
+        toast.error("Failed to generate lifestyle photo.");
       }
     } catch (e: any) {
       toast.error(e.message ?? "Generation failed");
@@ -135,7 +177,7 @@ function RebuiltEditProductPage() {
     }
   };
 
-  // Full Pipeline Execution
+  // Full Pipeline Runner
   const handleRunFullPipeline = async () => {
     setRunningPipeline(true);
     try {
@@ -144,10 +186,10 @@ function RebuiltEditProductPage() {
         toast.success("Full AI pipeline completed!");
         await load();
       } else {
-        toast.error("Pipeline run failed.");
+        toast.error("Pipeline run completed with notices.");
       }
     } catch (e: any) {
-      toast.error(e.message ?? "Pipeline run failed");
+      toast.error(e.message ?? "Pipeline failed");
     } finally {
       setRunningPipeline(false);
     }
@@ -157,13 +199,42 @@ function RebuiltEditProductPage() {
   const save = async () => {
     setSaving(true);
     const syncedDesc = p.seo_description || p.short_description || p.generated_description || null;
+    const finalCanonicalSlug = slugify(p.canonical_slug || p.slug) || slugify(p.name) || `product-${p.code || id.slice(0, 8)}`;
+    let currentMasterDoc = p.master_document || {};
+    if (!currentMasterDoc.alternative_names || currentMasterDoc.alternative_names.length === 0) {
+      const lower = (p.name || "").toLowerCase();
+      let altFallback: string[] = [];
+      if (lower.includes("sink") || lower.includes("bowl")) {
+        altFallback = ["Double Bowl Sink", "Two Compartment Sink", "Stainless Kitchen Basin", "Modern Kitchen Sink"];
+      } else if (lower.includes("toilet") || lower.includes("wc")) {
+        altFallback = ["Water Closet", "Commode", "Wall-Hung Toilet", "Bathroom WC"];
+      } else if (lower.includes("basin") || lower.includes("wash")) {
+        altFallback = ["Wash Hand Basin", "Wash Sink", "Vanity Basin", "Countertop Basin"];
+      } else if (lower.includes("mixer") || lower.includes("valve") || lower.includes("tap")) {
+        altFallback = ["Shower Valve", "Thermostatic Tap", "Concealed Mixer", "Bathroom Faucet"];
+      } else if (lower.includes("tile") || lower.includes("porcelain")) {
+        altFallback = ["Floor Tile", "Wall Tile", "Porcelain Tile"];
+      } else if (p.name) {
+        altFallback = [p.name];
+      }
+      currentMasterDoc = { ...currentMasterDoc, alternative_names: altFallback };
+    }
+
     const payload = {
       ...p,
+      canonical_slug: finalCanonicalSlug,
+      slug: finalCanonicalSlug,
       short_description: syncedDesc,
       generated_description: syncedDesc,
       seo_description: syncedDesc,
+      master_document: currentMasterDoc,
+      ai_understanding: currentMasterDoc,
       is_published: p.status === "published",
       price: Number(p.price) || 0,
+      original_price: p.original_price ? Number(p.original_price) : null,
+      pricing_unit: p.pricing_unit || "piece",
+      differentiator_type: p.differentiator_type || null,
+      differentiator_note: (p.differentiator_note || "").trim() || null,
       processing_state: "completed",
     };
     delete payload.id;
@@ -317,6 +388,36 @@ function RebuiltEditProductPage() {
             />
           </div>
           <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Original Price (NGN)</label>
+            <input
+              type="number"
+              placeholder="Optional regular price"
+              value={p.original_price ?? ""}
+              onChange={(e) => setField("original_price", e.target.value)}
+              className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Pricing Unit *</label>
+            <select
+              value={p.pricing_unit || "piece"}
+              onChange={(e) => setField("pricing_unit", e.target.value)}
+              className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+            >
+              <option value="piece">piece</option>
+              <option value="set">set</option>
+              <option value="unit">unit</option>
+              <option value="sqm">sqm (m²)</option>
+              <option value="carton">carton</option>
+              <option value="box">box</option>
+              <option value="metre">metre</option>
+              <option value="roll">roll</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div>
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Size / Dimension</label>
             <input
               type="text"
@@ -334,9 +435,6 @@ function RebuiltEditProductPage() {
               className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
             />
           </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Material</label>
             <input
@@ -356,6 +454,44 @@ function RebuiltEditProductPage() {
             />
           </div>
         </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Differentiator Type</label>
+            <select
+              value={p.differentiator_type || ""}
+              onChange={(e) => setField("differentiator_type", e.target.value)}
+              className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+            >
+              <option value="">None (Standard)</option>
+              <option value="Design Style">Design Style</option>
+              <option value="Material">Material</option>
+              <option value="Finish">Finish</option>
+              <option value="Format">Format</option>
+              <option value="Installation">Installation</option>
+              <option value="Performance">Performance</option>
+              <option value="Function">Function</option>
+              <option value="Collection">Collection</option>
+              <option value="Brand">Brand</option>
+              <option value="Application">Application</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Differentiator Note</label>
+              <span className="text-[9px] text-muted-foreground">{(p.differentiator_note || "").length}/80</span>
+            </div>
+            <input
+              type="text"
+              maxLength={80}
+              placeholder="e.g. Double Bowl Waterfall Tap / Wall-Hung Rimless"
+              value={p.differentiator_note || ""}
+              onChange={(e) => setField("differentiator_note", e.target.value)}
+              className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+            />
+          </div>
+        </div>
       </section>
 
       {/* SECTION 2: Images */}
@@ -365,50 +501,66 @@ function RebuiltEditProductPage() {
           <h2 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Section 2 — Images</h2>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Original Image */}
-          <div className="space-y-2">
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Original Manufacturer Image (FIXED SOURCE OF TRUTH) */}
+          <div className="space-y-3 bg-muted/20 border border-border p-4 rounded-xl">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-foreground">Original Manufacturer Image *</label>
-              <span className="text-[10px] text-muted-foreground">Source of Truth</span>
+              <label className="text-xs font-bold uppercase tracking-wider text-amber-600">Original Manufacturer Image *</label>
+              <span className="text-[10px] text-muted-foreground font-semibold">Source of Truth</span>
             </div>
             {p.image_url ? (
               <ImageTile
                 url={publicImageUrl(p.image_url) || p.image_url}
                 onDelete={() => setField("image_url", null)}
                 onEdit={() => setEditingImage({ url: publicImageUrl(p.image_url) || p.image_url, target: "image_url" })}
-                badge="Original"
+                badge="Original Source of Truth"
               />
             ) : (
               <ImageUploader multiple={false} onUploaded={(paths) => setField("image_url", paths[0])} label="Upload Original Product Image" />
             )}
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              This fixed original manufacturer image is the single source of truth for the product and is never overwritten or turned into a carousel.
+            </p>
           </div>
 
-          {/* Installed Image */}
-          <div className="space-y-2">
+          {/* Installation Images (MULTIPLE SWITCHABLE GALLERY) */}
+          <div className="space-y-3 bg-muted/20 border border-border p-4 rounded-xl">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-foreground">Finished Installation Image</label>
-              <span className="text-[10px] text-muted-foreground">Lifestyle Reference</span>
+              <label className="text-xs font-bold uppercase tracking-wider text-amber-600">Installation Gallery ({installationAssets.length + (p.generated_installed_image ? 1 : 0)})</label>
+              <span className="text-[10px] text-muted-foreground font-semibold">Multiple Switchable Images</span>
             </div>
-            {p.generated_installed_image ? (
-              <ImageTile
-                url={publicImageUrl(p.generated_installed_image) || p.generated_installed_image}
-                onDelete={() => setField("generated_installed_image", null)}
-                onEdit={() => setEditingImage({ url: publicImageUrl(p.generated_installed_image) || p.generated_installed_image, target: "generated_installed_image" })}
-                badge="Installed Scene"
-              />
-            ) : (
-              <ImageUploader multiple={false} onUploaded={(paths) => setField("generated_installed_image", paths[0])} label="Upload Installed Image" />
-            )}
-            <div className="pt-2">
+
+            {/* List of Installation Images */}
+            <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto pr-1">
+              {p.generated_installed_image && (
+                <ImageTile
+                  url={publicImageUrl(p.generated_installed_image) || p.generated_installed_image}
+                  onDelete={() => setField("generated_installed_image", null)}
+                  onEdit={() => setEditingImage({ url: publicImageUrl(p.generated_installed_image) || p.generated_installed_image, target: "generated_installed_image" })}
+                  badge="Primary Installed Scene"
+                />
+              )}
+              {installationAssets.map((asset, idx) => (
+                <ImageTile
+                  key={asset.id || idx}
+                  url={publicImageUrl(asset.asset_url) || asset.asset_url}
+                  onDelete={() => handleDeleteInstallationAsset(asset.id)}
+                  badge={`Installation ${idx + 1}`}
+                />
+              ))}
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-border">
+              <ImageUploader multiple={true} onUploaded={handleAddInstallationImages} label="Add Installation Images to Gallery" />
+
               <button
                 type="button"
                 onClick={handleGenerateLifestyle}
                 disabled={generatingLifestyle || !p.image_url}
-                className="w-full flex items-center justify-center gap-2 rounded border border-primary/30 bg-primary/10 px-4 py-2.5 text-xs font-bold text-primary hover:bg-primary/20 transition disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 rounded border border-primary/30 bg-primary/10 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition disabled:opacity-50"
               >
                 <Sparkles className="h-4 w-4" />
-                {generatingLifestyle ? "Engine 2 Generating Installed Image…" : "Generate Installed Image (Engine 2)"}
+                {generatingLifestyle ? "Engine 2 Generating Installed Image…" : "Generate AI Installed Image (Engine 2)"}
               </button>
             </div>
           </div>
@@ -566,8 +718,8 @@ function RebuiltEditProductPage() {
                 <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Canonical Slug</label>
                 <input
                   type="text"
-                  value={p.canonical_slug || p.slug || ""}
-                  onChange={(e) => setField("canonical_slug", e.target.value)}
+                  value={p.canonical_slug || slugify(p.name) || ""}
+                  onChange={(e) => setField("canonical_slug", slugify(e.target.value))}
                   className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs font-mono"
                 />
               </div>
@@ -594,12 +746,72 @@ function RebuiltEditProductPage() {
         {showSearchSection && (
           <div className="p-5 border-t border-border space-y-4 bg-muted/10">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Search Keywords (App Keywords)</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Search Keywords</label>
               <textarea
                 rows={2}
-                value={arrToStr(p.app_keywords || p.app_search_keywords)}
+                value={arrToStr(p.app_keywords || p.app_search_keywords || p.master_document?.google_search_tags)}
                 onChange={(e) => setField("app_keywords", strToArr(e.target.value))}
                 className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Alternative Names</label>
+              <textarea
+                rows={2}
+                value={arrToStr(
+                  p.master_document?.alternative_names && p.master_document.alternative_names.length > 0
+                    ? p.master_document.alternative_names
+                    : (p.ai_understanding?.alternative_names || [])
+                )}
+                onChange={(e) => {
+                  const arr = strToArr(e.target.value);
+                  const nextDoc = { ...(p.master_document || {}), alternative_names: arr };
+                  setField("master_document", nextDoc);
+                }}
+                className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Synonyms & Customer Phrases</label>
+              <textarea
+                rows={2}
+                value={arrToStr(p.master_document?.customer_search_phrases || p.master_document?.search_synonyms)}
+                onChange={(e) => {
+                  const arr = strToArr(e.target.value);
+                  const nextDoc = { ...(p.master_document || {}), customer_search_phrases: arr, search_synonyms: arr };
+                  setField("master_document", nextDoc);
+                }}
+                className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Related Terms</label>
+              <textarea
+                rows={2}
+                value={arrToStr(p.master_document?.related_search_terms)}
+                onChange={(e) => {
+                  const arr = strToArr(e.target.value);
+                  const nextDoc = { ...(p.master_document || {}), related_search_terms: arr };
+                  setField("master_document", nextDoc);
+                }}
+                className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Common Misspellings</label>
+              <textarea
+                rows={2}
+                value={arrToStr(p.master_document?.common_misspellings)}
+                onChange={(e) => {
+                  const arr = strToArr(e.target.value);
+                  const nextDoc = { ...(p.master_document || {}), common_misspellings: arr };
+                  setField("master_document", nextDoc);
+                }}
+                className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
               />
             </div>
           </div>
