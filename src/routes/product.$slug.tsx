@@ -180,6 +180,16 @@ function ProductPage() {
 
   const activeInstalledImage = installationImages[activeInstallationIndex] || installationImages[0] || null;
 
+  const handleLightboxNav = (direction: "prev" | "next") => {
+    if (!installationImages.length) return;
+    setLightboxScale(1);
+    const currentIndex = lightboxImg ? installationImages.indexOf(lightboxImg) : 0;
+    const nextIndex = direction === "next"
+      ? (currentIndex + 1) % installationImages.length
+      : (currentIndex - 1 + installationImages.length) % installationImages.length;
+    setLightboxImg(installationImages[nextIndex]);
+  };
+
   useEffect(() => {
     if (!product?.id) return;
 
@@ -411,14 +421,14 @@ function ProductPage() {
               {product.name}
             </h1>
             <div className="mt-1.5 flex items-baseline gap-2.5 flex-wrap">
-              {product.original_price != null && Number(product.original_price) > Number(product.price) && (
+              {(product as any).original_price != null && Number((product as any).original_price) > Number(product.price) && (
                 <span className="line-through text-lg font-normal text-destructive">
-                  ₦{Number(product.original_price).toLocaleString()}
+                  ₦{Number((product as any).original_price).toLocaleString()}
                 </span>
               )}
               <p className="font-display text-2xl font-bold text-primary">
                 ₦{Number(product.price).toLocaleString()}
-                <span className="ml-1 text-sm font-normal text-muted-foreground">/{product.pricing_unit || "piece"}</span>
+                <span className="ml-1 text-sm font-normal text-muted-foreground">/{(product as any).pricing_unit || "piece"}</span>
               </p>
             </div>
           </div>
@@ -455,12 +465,12 @@ function ProductPage() {
                 <dd className="mt-1 font-bold text-[#0F1115] text-xs">{taxonomy.subcategory.name}</dd>
               </div>
             )}
-            {product.differentiator_note && (
+            {(product as any).differentiator_note && (
               <div className="rounded-lg border border-[#C5A059]/40 bg-[#C5A059]/10 p-3 shadow-xs">
                 <dt className="text-[9px] font-bold uppercase tracking-wider text-[#ea580c]">
-                  {product.differentiator_type || "Feature"}
+                  {(product as any).differentiator_type || "Feature"}
                 </dt>
-                <dd className="mt-1 font-bold text-[#0F1115] text-xs">{product.differentiator_note}</dd>
+                <dd className="mt-1 font-bold text-[#0F1115] text-xs">{(product as any).differentiator_note}</dd>
               </div>
             )}
             {[
@@ -503,7 +513,7 @@ function ProductPage() {
             <h2 className="font-display text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
               From the same design family
             </h2>
-            <p className="font-display text-lg font-extrabold text-foreground uppercase tracking-tight">Related materials</p>
+            <p className="font-display text-lg font-extrabold text-foreground uppercase tracking-tight">Related collections</p>
             <div className="mt-3.5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {related.map((p) => (
                 <ProductCard key={p.id} product={p} />
