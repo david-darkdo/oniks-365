@@ -63,12 +63,12 @@ function RebuiltEditProductPage() {
     if (!data.canonical_slug && data.name) {
       data.canonical_slug = slugify(data.name);
     }
-    if (!data.master_document?.alternative_names || data.master_document.alternative_names.length === 0) {
-      const fallbackAlts = data.ai_understanding?.alternative_names && data.ai_understanding.alternative_names.length > 0
-        ? data.ai_understanding.alternative_names
-        : [];
+    const masterDoc = (data.master_document && typeof data.master_document === "object" && !Array.isArray(data.master_document)) ? (data.master_document as Record<string, any>) : {};
+    const aiUnd = (data.ai_understanding && typeof data.ai_understanding === "object" && !Array.isArray(data.ai_understanding)) ? (data.ai_understanding as Record<string, any>) : {};
+    if (!masterDoc.alternative_names || masterDoc.alternative_names.length === 0) {
+      const fallbackAlts = Array.isArray(aiUnd.alternative_names) ? aiUnd.alternative_names : [];
       if (fallbackAlts.length > 0) {
-        data.master_document = { ...(data.master_document || {}), alternative_names: fallbackAlts };
+        data.master_document = { ...masterDoc, alternative_names: fallbackAlts };
       }
     }
     setP(data);
@@ -120,20 +120,7 @@ function RebuiltEditProductPage() {
   if (!p) return <div className="container-app py-10 text-sm text-muted-foreground font-mono">Loading product data…</div>;
 
   const setField = (key: string, value: any) => {
-    setP((prev: any) => {
-      const next = { ...prev, [key]: value };
-      // CRITICAL SYNC RULE: Product Description = SEO Description
-      if (key === "short_description" || key === "generated_description") {
-        next.short_description = value;
-        next.generated_description = value;
-        next.seo_description = value;
-      } else if (key === "seo_description") {
-        next.seo_description = value;
-        next.short_description = value;
-        next.generated_description = value;
-      }
-      return next;
-    });
+    setP((prev: any) => ({ ...prev, [key]: value }));
     setIsDirty(true);
   };
 
@@ -198,7 +185,8 @@ function RebuiltEditProductPage() {
   // SAVE HANDLER
   const save = async () => {
     setSaving(true);
-    const syncedDesc = p.seo_description || p.short_description || p.generated_description || null;
+    const productDesc = p.short_description || p.generated_description || null;
+    const seoDesc = p.seo_description || null;
     const finalCanonicalSlug = slugify(p.canonical_slug || p.slug) || slugify(p.name) || `product-${p.code || id.slice(0, 8)}`;
     let currentMasterDoc = p.master_document || {};
     if (!currentMasterDoc.alternative_names || currentMasterDoc.alternative_names.length === 0) {
@@ -224,9 +212,9 @@ function RebuiltEditProductPage() {
       ...p,
       canonical_slug: finalCanonicalSlug,
       slug: finalCanonicalSlug,
-      short_description: syncedDesc,
-      generated_description: syncedDesc,
-      seo_description: syncedDesc,
+      short_description: productDesc,
+      generated_description: productDesc,
+      seo_description: seoDesc,
       master_document: currentMasterDoc,
       ai_understanding: currentMasterDoc,
       is_published: p.status === "published",
@@ -492,6 +480,17 @@ function RebuiltEditProductPage() {
             />
           </div>
         </div>
+
+        <div>
+          <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Product Description</label>
+          <textarea
+            rows={3}
+            placeholder="Detailed customer-facing product description..."
+            value={p.short_description || p.generated_description || ""}
+            onChange={(e) => setField("short_description", e.target.value)}
+            className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs leading-relaxed"
+          />
+        </div>
       </section>
 
       {/* SECTION 2: Images */}
@@ -692,13 +691,11 @@ function RebuiltEditProductPage() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">SEO Description & Product Description (Synced)</label>
-                <span className="text-[9px] text-primary font-semibold">Critical Sync Rule Active</span>
-              </div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">SEO Description</label>
               <textarea
                 rows={3}
-                value={p.seo_description || p.short_description || p.generated_description || ""}
+                placeholder="Google SERP snippet description..."
+                value={p.seo_description || ""}
                 onChange={(e) => setField("seo_description", e.target.value)}
                 className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs leading-relaxed"
               />
