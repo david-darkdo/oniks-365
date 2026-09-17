@@ -49,109 +49,112 @@ function YouTubeBrandIcon({ className = "h-5 w-5" }: { className?: string }) {
 
 export function SiteFooter() {
   const { data: s } = useAppSettings();
-  const mapUrl = s?.map_url || null;
 
   return (
-    <footer className="mt-6 border-t border-border bg-white text-foreground">
+    <footer className="mt-6 border-t border-[#C5A059]/30 bg-[#0B0C0E] text-gray-300">
       <div className="container-app grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-3">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="SOLIDAS Logo" className="h-8 w-auto object-contain" />
-            <div className="font-display text-lg font-bold tracking-tight text-[#1E82A6]">
-              SOLIDAS
+            <img src="/logo.png" alt="ONIKS365 Logo" className="h-10 w-auto object-contain" />
+            <div className="font-display text-xl font-bold tracking-tight text-[#ea580c]">
+              ONIKS365
             </div>
           </div>
-          <p className="text-xs font-semibold text-[#C0262D]">
-            SOLIDAS TILES AND MARBLE NIG. LIMITED
+          <p className="text-xs font-semibold text-gray-200">
+            ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS
           </p>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Dealers & Suppliers of General Building Materials Such As Tiles & Marble, Granite, Crack Tiles, Foreign Security Doors, Wooden Doors, PVC Ceiling & General Contracts.
+          <p className="text-xs text-gray-400 leading-relaxed">
+            Oniks365 is a proudly Nigerian, CAC-registered company delivering premium modern kitchen solutions and luxury bathroom fittings across Nigeria.
           </p>
-          <p className="text-[11px] font-mono text-muted-foreground/70">
-            RC Registration: 1218629
+          <p className="text-[11px] font-medium text-[#D4AF37]">
+            ONIKS365 – Redefining Comfort, Style, and Functionality.
           </p>
         </div>
 
         <div>
-          <div className="text-xs font-bold uppercase tracking-wider text-[#1E82A6]">Showroom Discovery</div>
+          <Link to="/" className="text-xs font-bold uppercase tracking-wider text-[#D4AF37] hover:text-[#ea580c] transition block">Showroom Discovery</Link>
           <ul className="mt-4 space-y-2.5 text-sm">
-            <li><Link to="/home" className="text-muted-foreground hover:text-[#1E82A6] transition">Showroom Home</Link></li>
-            <li><Link to="/search" search={{ q: "" }} className="text-muted-foreground hover:text-[#1E82A6] transition">Material Catalog & Search</Link></li>
-            <li><Link to="/collection" className="text-muted-foreground hover:text-[#1E82A6] transition">Project Collection Workspace</Link></li>
-            <li><Link to="/contact" className="text-muted-foreground hover:text-[#1E82A6] transition">Contact & Head Office</Link></li>
+            <li><Link to="/" className="text-gray-400 hover:text-[#D4AF37] transition font-semibold text-[#D4AF37]/90">Storefront Feed</Link></li>
+            <li><Link to="/" className="text-gray-400 hover:text-[#D4AF37] transition">Kitchen & Bathroom Catalog</Link></li>
+            <li><Link to="/home" className="text-gray-400 hover:text-[#D4AF37] transition">Showroom Home</Link></li>
+            <li><Link to="/collection" className="text-gray-400 hover:text-[#D4AF37] transition">Project Collection Workspace</Link></li>
+            <li><Link to="/contact" className="text-gray-400 hover:text-[#D4AF37] transition">Contact & Showrooms</Link></li>
           </ul>
         </div>
 
         <div>
-          <div className="text-xs font-bold uppercase tracking-wider text-[#1E82A6]">Offices & Contacts</div>
-          <ul className="mt-4 space-y-3 text-xs text-muted-foreground">
+          <div className="text-xs font-bold uppercase tracking-wider text-[#D4AF37]">Locations & Delivery</div>
+          <ul className="mt-4 space-y-3 text-xs text-gray-400">
             <li className="flex items-start gap-2">
-              <MapPin className="mt-0.5 h-4 w-4 text-[#C0262D] shrink-0" />
-              <div>
-                <strong className="block text-foreground font-semibold">Head Office:</strong>
-                {mapUrl ? (
-                  <a
-                    href={mapUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-[#1E82A6] hover:underline transition"
-                  >
-                    Plot 469, Solidas Plaza, Saburi District Opp Timber Shed Dei Dei Building Material Mkt. FCT - Abuja
-                  </a>
-                ) : (
-                  <span>Plot 469, Solidas Plaza, Saburi District Opp Timber Shed Dei Dei Building Material Mkt. FCT - Abuja</span>
-                )}
-              </div>
+              <MapPin className="mt-0.5 h-4 w-4 text-[#D4AF37] shrink-0" />
+              {s?.map_url ? (
+                <a
+                  href={s.map_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open location in Google Maps"
+                  className="group hover:text-[#D4AF37] transition cursor-pointer"
+                >
+                  <strong className="block text-gray-200 font-semibold group-hover:text-[#D4AF37] transition">Abuja Showroom:</strong>
+                  <span>{s.company_address || "69/243 Cornershop International Building Materials Market, Dei-Dei, Abuja FCT, Nigeria"}</span>
+                </a>
+              ) : (
+                <div>
+                  <strong className="block text-gray-200 font-semibold">Abuja Showroom:</strong>
+                  <span>{s?.company_address || "69/243 Cornershop International Building Materials Market, Dei-Dei, Abuja FCT, Nigeria"}</span>
+                </div>
+              )}
             </li>
             <li className="flex items-start gap-2">
-              <MapPin className="mt-0.5 h-4 w-4 text-[#1E82A6] shrink-0" />
-              <div>
-                <strong className="block text-foreground font-semibold">Branch Office:</strong>
-                {mapUrl ? (
-                  <a
-                    href={mapUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-[#1E82A6] hover:underline transition"
-                  >
-                    Shop 819 C2 Extension Int'l Building Material Mkt Dei Dei, FCT Abuja
-                  </a>
-                ) : (
-                  <span>Shop 819 C2 Extension Int'l Building Material Mkt Dei Dei, FCT Abuja</span>
-                )}
-              </div>
+              <MapPin className="mt-0.5 h-4 w-4 text-[#D4AF37] shrink-0" />
+              {s?.map_url ? (
+                <a
+                  href={s.map_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open location in Google Maps"
+                  className="group hover:text-[#D4AF37] transition cursor-pointer"
+                >
+                  <strong className="block text-gray-200 font-semibold group-hover:text-[#D4AF37] transition">Lagos Office:</strong>
+                  <span>Odunade Building Materials Market, Coker, Orile, Badagry Expressway, Lagos, Nigeria</span>
+                </a>
+              ) : (
+                <div>
+                  <strong className="block text-gray-200 font-semibold">Lagos Office:</strong>
+                  <span>Odunade Building Materials Market, Coker, Orile, Badagry Expressway, Lagos, Nigeria</span>
+                </div>
+              )}
             </li>
             <li className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-[#1E82A6] shrink-0" />
-              <span>Tel: 0803 518 6355 | 0815 149 5663 | 0904 032 7777</span>
+              <Phone className="h-4 w-4 text-[#D4AF37] shrink-0" />
+              <span>Nationwide Delivery across Nigeria (Payment on delivery in Abuja & Lagos)</span>
             </li>
             {s?.company_email && (
               <li className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-[#1E82A6] shrink-0" />
-                <a href={`mailto:${s.company_email}`} className="hover:text-[#1E82A6]">{s.company_email}</a>
+                <Mail className="h-4 w-4 text-[#D4AF37] shrink-0" />
+                <a href={`mailto:${s.company_email}`} className="hover:text-[#D4AF37]">{s.company_email}</a>
               </li>
             )}
           </ul>
         </div>
 
         <div>
-          <div className="text-xs font-bold uppercase tracking-wider text-[#1E82A6]">Connect & Inquiries</div>
-          <p className="mt-4 text-xs text-muted-foreground leading-relaxed">
-            Need custom quotes, bulk orders, or architectural samples? Speak directly with our sales team via WhatsApp.
+          <div className="text-xs font-bold uppercase tracking-wider text-[#D4AF37]">Connect & Inquiries</div>
+          <p className="mt-4 text-xs text-gray-400 leading-relaxed">
+            Upgrading or furnishing your kitchen or bathroom? Speak directly with our consultation team via WhatsApp.
           </p>
           <div className="mt-4">
             <a
-              href={`https://wa.me/${(s?.sales_whatsapp || "2348035186355").replace(/[^\d]/g, "")}?text=${encodeURIComponent("Hello SOLIDAS, I would like to inquire about building materials.")}`}
+              href={`https://wa.me/${(s?.sales_whatsapp || "2348035186355").replace(/[^\d]/g, "")}?text=${encodeURIComponent("Hello ONIKS365, I would like to inquire about your kitchen and bathroom solutions.")}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg bg-[#C0262D] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#9A1B21]"
+              className="inline-flex items-center gap-2 rounded-lg bg-[#25D366] px-4 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-[#1EBE5D]"
             >
               <Phone className="h-4 w-4" />
-              <span>WhatsApp Sales Consultation</span>
+              <span>WhatsApp Consultation</span>
             </a>
           </div>
           
-          {/* Official 4 Social Platforms — Beautified Official Brand Icons */}
           <ul className="mt-6 flex flex-wrap items-center gap-3">
             <li>
               <a
@@ -159,7 +162,7 @@ export function SiteFooter() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Facebook"
-                className="grid h-10 w-10 place-items-center rounded-full bg-[#1877F2] text-white shadow-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-110 hover:shadow-lg motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100"
+                className="grid h-10 w-10 place-items-center rounded-full bg-[#1877F2] text-white shadow-md transition-all hover:scale-110"
               >
                 <FacebookBrandIcon className="h-5 w-5 fill-white" />
               </a>
@@ -170,7 +173,7 @@ export function SiteFooter() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
-                className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-tr from-[#fdf497] via-[#fd5949] to-[#d6249f] text-white shadow-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-110 hover:shadow-lg motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100"
+                className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-tr from-[#fdf497] via-[#fd5949] to-[#d6249f] text-white shadow-md transition-all hover:scale-110"
               >
                 <InstagramBrandIcon className="h-5 w-5 fill-white" />
               </a>
@@ -181,18 +184,18 @@ export function SiteFooter() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="TikTok"
-                className="grid h-10 w-10 place-items-center rounded-full bg-black text-white shadow-md ring-1 ring-white/20 transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-110 hover:shadow-lg motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100"
+                className="grid h-10 w-10 place-items-center rounded-full bg-black text-white shadow-md ring-1 ring-white/20 transition-all hover:scale-110"
               >
                 <TikTokBrandIcon className="h-5 w-5 fill-white" />
               </a>
             </li>
             <li>
               <a
-                href={s?.youtube_url || "https://youtube.com"}
+                href={(s as any)?.youtube_url || "https://youtube.com"}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="YouTube"
-                className="grid h-10 w-10 place-items-center rounded-full bg-[#FF0000] text-white shadow-md transition-all duration-200 ease-out hover:-translate-y-0.5 hover:scale-110 hover:shadow-lg motion-reduce:hover:translate-y-0 motion-reduce:hover:scale-100"
+                className="grid h-10 w-10 place-items-center rounded-full bg-[#FF0000] text-white shadow-md transition-all hover:scale-110"
               >
                 <YouTubeBrandIcon className="h-5 w-5 fill-white" />
               </a>
@@ -201,8 +204,8 @@ export function SiteFooter() {
         </div>
       </div>
 
-      <div className="border-t border-border py-4 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} SOLIDAS TILES AND MARBLE NIG. LIMITED. All rights reserved.
+      <div className="border-t border-white/10 py-4 text-center text-xs text-gray-500">
+        © {new Date().getFullYear()} ONIKS365 — ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS. All rights reserved.
       </div>
     </footer>
   );
