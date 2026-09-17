@@ -23,6 +23,10 @@ type Row = {
   production_name: string | null;
   finish_name: string | null;
   price: number;
+  original_price?: number | null;
+  pricing_unit?: string | null;
+  differentiator_type?: string | null;
+  differentiator_note?: string | null;
   status: string;
   featured_homepage: boolean;
   featured_feed: boolean;
@@ -334,7 +338,10 @@ function ProductLibrary() {
                   <td className="p-2 text-muted-foreground">{r.production_name ?? "—"}</td>
                   <td className="p-2 text-muted-foreground">{r.finish_name ?? "—"}</td>
                   <td className="p-2 text-muted-foreground">{type} › {cat} › {sub} › {fam}</td>
-                  <td className="p-2">${Number(r.price).toFixed(2)}</td>
+                  <td className="p-2">
+                    ₦{Number(r.price).toLocaleString()}{" "}
+                    <span className="text-[10px] font-normal text-muted-foreground">/{r.pricing_unit || "piece"}</span>
+                  </td>
                   <td className="p-2"><Badge>{r.status}</Badge></td>
                   <td className="p-2 space-x-1">
                     {r.featured_homepage && <Badge tone="accent">Home</Badge>}

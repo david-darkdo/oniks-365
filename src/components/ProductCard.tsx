@@ -49,7 +49,7 @@ export function ProductCard({ product }: { product: ProductRow }) {
   const img =
     publicImageUrl(product.generated_studio_image) ||
     publicImageUrl(product.image_url) ||
-    "https://placehold.co/600x600/eee/aaa?text=No+Image";
+    "https://placehold.co/600x600/121316/D4AF37?text=ONIKS365";
 
   // Determine if product is recently published (newer than 7 days)
   const isNew = useMemo(() => {
@@ -68,18 +68,18 @@ export function ProductCard({ product }: { product: ProductRow }) {
   };
 
   return (
-    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md hover:border-primary/20">
+    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-[#E5E0D8] bg-white shadow-xs transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-[#C5A059]">
       {/* Floating Badges */}
       {isNew && (
-        <span className="absolute top-2.5 left-2.5 z-10 bg-primary/90 backdrop-blur px-2 py-0.5 rounded text-[9px] font-bold text-primary-foreground tracking-wide uppercase shadow">
-          New
+        <span className="absolute top-2.5 left-2.5 z-10 bg-[#0F1115] border border-[#C5A059]/50 backdrop-blur px-2.5 py-0.5 rounded text-[9px] font-bold text-[#D4AF37] tracking-wider uppercase shadow-md">
+          NEW
         </span>
       )}
 
       {/* Floating Favorite Heart Icon */}
       <button
         onClick={handleToggleFavorite}
-        className="absolute top-2.5 right-2.5 z-10 rounded-full p-2 bg-background/85 hover:bg-background text-foreground transition shadow border border-border/80 focus:outline-none"
+        className="absolute top-2.5 right-2.5 z-10 rounded-full p-2 bg-white/90 hover:bg-white text-foreground transition shadow-md border border-[#E5E0D8] focus:outline-none"
         aria-label={isFav ? "Remove from favorites" : "Save to favorites"}
       >
         <Heart className={`h-3.5 w-3.5 transition-colors duration-300 text-red-500 hover:text-red-600 ${isFav ? "fill-red-500 text-red-500" : ""}`} />
@@ -88,7 +88,7 @@ export function ProductCard({ product }: { product: ProductRow }) {
       <Link
         to="/product/$slug"
         params={{ slug: getCanonicalProductSlug(product) }}
-        className="block aspect-square overflow-hidden bg-muted"
+        className="block aspect-square overflow-hidden bg-[#F4F0EA]"
       >
         <img
           src={img}
@@ -98,25 +98,37 @@ export function ProductCard({ product }: { product: ProductRow }) {
         />
       </Link>
 
-      <div className="flex flex-1 flex-col gap-2 p-3">
+      <div className="flex flex-1 flex-col gap-2 p-3.5">
         <div>
-          <h3 className="font-display text-sm font-semibold leading-tight text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+          <h3 className="font-display text-sm font-bold leading-tight text-[#0F1115] line-clamp-1 group-hover:text-[#ea580c] transition-colors">
             {product.name}
           </h3>
           <p className="mt-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-            Code · {product.code}
+            CODE · {product.code}
           </p>
         </div>
-        <p className="font-display text-base font-bold text-primary mt-1">
-          ₦{Number(product.price).toLocaleString()}
-          <span className="ml-1 text-[10px] font-normal text-muted-foreground">/sqm</span>
-        </p>
-        <div className="mt-auto flex gap-2 pt-2 border-t border-border/40">
+        <div className="flex items-baseline gap-1.5 flex-wrap mt-1">
+          {product.original_price != null && Number(product.original_price) > Number(product.price) && (
+            <span className="line-through text-xs font-normal text-destructive">
+              ₦{Number(product.original_price).toLocaleString()}
+            </span>
+          )}
+          <p className="font-display text-base font-extrabold text-[#0F1115]">
+            ₦{Number(product.price).toLocaleString()}
+            <span className="ml-1 text-[10px] font-normal text-muted-foreground">/{product.pricing_unit || "piece"}</span>
+          </p>
+        </div>
+        {product.differentiator_note && (
+          <span className="inline-block self-start rounded bg-[#C5A059]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[#8C6D23] line-clamp-1">
+            {product.differentiator_note}
+          </span>
+        )}
+        <div className="mt-auto flex gap-2 pt-2 border-t border-[#E5E0D8]/60">
           <AddToCollectionButton productId={product.id} compact />
           <Link
             to="/product/$slug"
             params={{ slug: getCanonicalProductSlug(product) }}
-            className="flex-1 flex items-center justify-center rounded bg-primary px-3 py-1.5 text-[10px] font-semibold text-primary-foreground hover:bg-primary/95 transition shadow-sm"
+            className="flex-1 flex items-center justify-center rounded-lg bg-[#0F1115] border border-[#C5A059]/40 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-[#1A1D24] hover:text-[#D4AF37] transition shadow-xs"
           >
             View
           </Link>

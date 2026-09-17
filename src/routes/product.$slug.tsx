@@ -48,17 +48,19 @@ export const Route = createFileRoute("/product/$slug")({
 
     context.queryClient.ensureQueryData(relatedQuery(product.family_id, product.id));
 
-    // Fetch taxonomy parents
-    const [typeRes, categoryRes, subcategoryRes, familyRes] = await Promise.all([
+    // Fetch taxonomy parents & installation assets
+    const [typeRes, categoryRes, subcategoryRes, familyRes, assetsRes] = await Promise.all([
       product.type_id ? supabase.from("product_types").select("name, slug").eq("id", product.type_id).maybeSingle() : Promise.resolve({ data: null }),
       product.category_id ? supabase.from("categories").select("name, slug").eq("id", product.category_id).maybeSingle() : Promise.resolve({ data: null }),
       product.subcategory_id ? supabase.from("subcategories").select("name, slug").eq("id", product.subcategory_id).maybeSingle() : Promise.resolve({ data: null }),
       product.family_id ? supabase.from("family_groups").select("name, slug").eq("id", product.family_id).maybeSingle() : Promise.resolve({ data: null }),
+      supabase.from("product_assets").select("id, asset_url, asset_type, created_at").eq("product_id", product.id).eq("asset_type", "installed").order("created_at", { ascending: false }),
     ]);
 
     return {
       product,
       origin,
+      installationAssets: assetsRes.data ?? [],
       taxonomy: {
         type: typeRes.data,
         category: categoryRes.data,
@@ -70,8 +72,8 @@ export const Route = createFileRoute("/product/$slug")({
   head: ({ loaderData }: any): any => {
     const product = loaderData?.product;
     const origin = loaderData?.origin || getProductionOrigin();
-    const title = product?.seo_title || `${product?.name || "Product"} — Enreach Concepts`;
-    const desc = product?.seo_description || product?.short_description || "Premium building material details.";
+    const title = product?.seo_title || `${product?.name || "Product"} — ONIKS365`;
+    const desc = product?.seo_description || product?.short_description || "Premium kitchen & bathroom solution details.";
     const imageUrl = product?.generated_studio_image || product?.image_url || "";
     const canonical = getCanonicalProductUrl(product, origin);
 
@@ -143,7 +145,7 @@ function ProductDetailSkeleton() {
 }
 
 function ProductPage() {
-  const { product, origin, taxonomy } = Route.useLoaderData();
+  const { product, origin, installationAssets, taxonomy } = Route.useLoaderData();
   const { data: related = [] } = useSuspenseQuery(
     relatedQuery(product.family_id, product.id),
   );
@@ -153,17 +155,30 @@ function ProductPage() {
   const isFav = isFavorite(product.id);
   const [recommendations, setRecommendations] = useState<any[]>([]);
 
-  // Gallery slider states
-  const [activeImgIndex, setActiveImgIndex] = useState(0);
+  // Fixed Original Manufacturer Image (Source of Truth)
+  const originalImageUrl = publicImageUrl(product.image_url) || publicImageUrl(product.generated_studio_image);
+
+  // Switchable Installation Images Gallery
+  const installationImages = useMemo(() => {
+    const list: string[] = [];
+    if (product.generated_installed_image) {
+      const url = publicImageUrl(product.generated_installed_image);
+      if (url) list.push(url);
+    }
+    (installationAssets || []).forEach((asset: any) => {
+      const url = publicImageUrl(asset.asset_url) || asset.asset_url;
+      if (url && !list.includes(url)) {
+        list.push(url);
+      }
+    });
+    return list;
+  }, [product.generated_installed_image, installationAssets]);
+
+  const [activeInstallationIndex, setActiveInstallationIndex] = useState(0);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const [lightboxScale, setLightboxScale] = useState(1);
 
-  const studio = publicImageUrl(product.generated_studio_image) || publicImageUrl(product.image_url);
-  const installed = publicImageUrl(product.generated_installed_image) || publicImageUrl(product.image_url);
-
-  const galleryImages = useMemo(() => {
-    return [studio, installed].filter(Boolean) as string[];
-  }, [studio, installed]);
+  const activeInstalledImage = installationImages[activeInstallationIndex] || installationImages[0] || null;
 
   useEffect(() => {
     if (!product?.id) return;
@@ -240,7 +255,7 @@ function ProductPage() {
     "@context": "https://schema.org",
     "@type": "Product",
     "name": product.name,
-    "image": galleryImages.map((img) => ({
+    "image": [originalImageUrl, ...installationImages].filter(Boolean).map((img) => ({
       "@type": "ImageObject",
       "url": img,
       "name": product.alt_text || product.name,
@@ -251,7 +266,7 @@ function ProductPage() {
     "mpn": product.code || product.id,
     "brand": {
       "@type": "Brand",
-      "name": product.brand || "Enreach Concepts"
+      "name": product.brand || "ONIKS365"
     },
     "material": product.material || undefined,
     "color": product.color || undefined,
@@ -266,7 +281,7 @@ function ProductPage() {
       "itemCondition": "https://schema.org/NewCondition",
       "seller": {
         "@type": "Organization",
-        "name": "Enreach Concepts",
+        "name": "ONIKS365",
         "url": origin
       }
     }
@@ -284,19 +299,6 @@ function ProductPage() {
       }
     }))
   } : null;
-
-  const handleLightboxNav = (dir: "prev" | "next") => {
-    const idx = galleryImages.indexOf(lightboxImg || "");
-    if (idx === -1) return;
-    if (dir === "prev") {
-      const nextIdx = (idx - 1 + galleryImages.length) % galleryImages.length;
-      setLightboxImg(galleryImages[nextIdx]);
-    } else {
-      const nextIdx = (idx + 1) % galleryImages.length;
-      setLightboxImg(galleryImages[nextIdx]);
-    }
-    setLightboxScale(1); // Reset zoom scale
-  };
 
   return (
     <AppShell>
@@ -325,73 +327,100 @@ function ProductPage() {
           ))}
         </nav>
 
-        {/* Gallery Grid */}
+        {/* Gallery Grid: Fixed Original Image (Left) + Switchable Installation Gallery (Right) */}
         <div className="mt-3 grid gap-4 md:grid-cols-2">
-          {/* Main Studio View */}
-          <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm aspect-square flex items-center justify-center">
-            {galleryImages[activeImgIndex] ? (
-              <img
-                src={galleryImages[activeImgIndex]}
-                alt={product.name}
-                onClick={() => setLightboxImg(galleryImages[activeImgIndex])}
-                className="w-full h-full object-cover cursor-zoom-in hover:scale-[1.01] transition-transform duration-300"
-              />
-            ) : (
-              <div className="text-xs text-muted-foreground italic">No image assets</div>
-            )}
-          </div>
-
-          {/* Installed Lifestyle Reference - Full Frame Cover */}
-          <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm flex flex-col justify-between aspect-square">
-            <div className="flex-1 overflow-hidden">
-              {installed ? (
+          {/* FIXED ORIGINAL MANUFACTURER IMAGE (Source of Truth — non-carousel) */}
+          <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm flex flex-col aspect-square">
+            <div className="flex-1 overflow-hidden flex items-center justify-center">
+              {originalImageUrl ? (
                 <img
-                  src={installed}
-                  alt={`${product.name} installed scene`}
-                  loading="lazy"
-                  onClick={() => setLightboxImg(installed)}
+                  src={originalImageUrl}
+                  alt={`${product.name} — Original Manufacturer Image`}
+                  onClick={() => setLightboxImg(originalImageUrl)}
                   className="w-full h-full object-cover cursor-zoom-in hover:scale-[1.01] transition-transform duration-300"
                 />
               ) : (
-                <div className="text-xs text-muted-foreground italic flex h-full items-center justify-center bg-muted/20">No installed preview uploaded</div>
+                <div className="text-xs text-muted-foreground italic">No original manufacturer image</div>
               )}
             </div>
-            <div className="border-t border-border px-3.5 py-2 text-[9px] uppercase tracking-[0.18em] text-muted-foreground font-semibold bg-background shrink-0">
-              Installed reference / lifestyle layout
+            <div className="border-t border-border px-3.5 py-2 text-[9px] uppercase tracking-[0.18em] text-amber-600 font-bold bg-background shrink-0 flex items-center justify-between">
+              <span>Original Manufacturer Image</span>
+              <span className="text-[9px] font-normal text-muted-foreground">Source of Truth</span>
+            </div>
+          </div>
+
+          {/* SWITCHABLE INSTALLATION IMAGES GALLERY (Right) */}
+          <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm flex flex-col aspect-square">
+            <div className="flex-1 overflow-hidden flex items-center justify-center bg-muted/10">
+              {activeInstalledImage ? (
+                <img
+                  src={activeInstalledImage}
+                  alt={`${product.name} — Installation View ${activeInstallationIndex + 1}`}
+                  loading="lazy"
+                  onClick={() => setLightboxImg(activeInstalledImage)}
+                  className="w-full h-full object-cover cursor-zoom-in hover:scale-[1.01] transition-transform duration-300"
+                />
+              ) : (
+                <div className="text-xs text-muted-foreground italic flex h-full items-center justify-center p-6 text-center">
+                  No installation preview images uploaded yet
+                </div>
+              )}
+            </div>
+
+            {/* Installation Gallery Footer & Selector */}
+            <div className="border-t border-border px-3.5 py-2.5 bg-background shrink-0 space-y-2">
+              <div className="flex items-center justify-between text-[9px] uppercase tracking-[0.18em] font-bold text-foreground">
+                <span className="text-amber-600">Installation Gallery</span>
+                {installationImages.length > 0 && (
+                  <span className="text-muted-foreground font-mono">
+                    View {activeInstallationIndex + 1} of {installationImages.length}
+                  </span>
+                )}
+              </div>
+
+              {/* Installation Image Switching Buttons */}
+              {installationImages.length > 1 && (
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+                  {installationImages.map((imgUrl, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveInstallationIndex(idx)}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md border transition flex items-center gap-1.5 shrink-0 ${
+                        activeInstallationIndex === idx
+                          ? "bg-amber-500/10 border-amber-500 text-amber-600 shadow-2xs"
+                          : "bg-muted/40 border-border text-muted-foreground hover:border-amber-500/40 hover:text-foreground"
+                      }`}
+                    >
+                      <img src={imgUrl} alt={`Inst ${idx + 1}`} className="w-3.5 h-3.5 object-cover rounded" />
+                      <span>Installation {idx + 1}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
-
-        {/* Thumbnail Selector Bar */}
-        {galleryImages.length > 1 && (
-          <div className="flex gap-2.5 mt-3 overflow-x-auto pb-1 scrollbar-none">
-            {galleryImages.map((imgUrl, i) => (
-              <button
-                key={i}
-                onClick={() => setActiveImgIndex(i)}
-                className={`h-14 w-14 rounded-lg border overflow-hidden shrink-0 transition bg-card ${
-                  activeImgIndex === i ? "border-primary shadow-sm" : "border-border hover:border-primary/45"
-                }`}
-              >
-                <img src={imgUrl} alt="thumbnail" className="h-full w-full object-cover" />
-              </button>
-            ))}
-          </div>
-        )}
 
         {/* Product Details Section */}
         <div className="mt-6 space-y-4">
           <div>
             <p className="text-xs font-mono uppercase tracking-[0.18em] text-primary font-bold">
-              {product.brand || "Enreach Concepts"} · Code {product.code}
+              {product.brand || "ONIKS365"} · Code {product.code}
             </p>
             <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight uppercase">
               {product.name}
             </h1>
-            <p className="mt-1.5 font-display text-2xl font-bold text-primary">
-              ₦{Number(product.price).toLocaleString()}
-              <span className="ml-1 text-sm font-normal text-muted-foreground">/sqm</span>
-            </p>
+            <div className="mt-1.5 flex items-baseline gap-2.5 flex-wrap">
+              {product.original_price != null && Number(product.original_price) > Number(product.price) && (
+                <span className="line-through text-lg font-normal text-destructive">
+                  ₦{Number(product.original_price).toLocaleString()}
+                </span>
+              )}
+              <p className="font-display text-2xl font-bold text-primary">
+                ₦{Number(product.price).toLocaleString()}
+                <span className="ml-1 text-sm font-normal text-muted-foreground">/{product.pricing_unit || "piece"}</span>
+              </p>
+            </div>
           </div>
 
           {product.short_description && (
@@ -421,9 +450,17 @@ function ProductPage() {
           {/* Technical Specifications & Subcategory Identity */}
           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs max-w-xl">
             {taxonomy.subcategory?.name && (
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 shadow-sm">
-                <dt className="text-[9px] font-bold uppercase tracking-wider text-primary">Subcategory</dt>
-                <dd className="mt-1 font-semibold text-foreground text-xs">{taxonomy.subcategory.name}</dd>
+              <div className="rounded-lg border border-[#C5A059]/40 bg-[#C5A059]/10 p-3 shadow-xs">
+                <dt className="text-[9px] font-bold uppercase tracking-wider text-[#ea580c]">Subcategory</dt>
+                <dd className="mt-1 font-bold text-[#0F1115] text-xs">{taxonomy.subcategory.name}</dd>
+              </div>
+            )}
+            {product.differentiator_note && (
+              <div className="rounded-lg border border-[#C5A059]/40 bg-[#C5A059]/10 p-3 shadow-xs">
+                <dt className="text-[9px] font-bold uppercase tracking-wider text-[#ea580c]">
+                  {product.differentiator_type || "Feature"}
+                </dt>
+                <dd className="mt-1 font-bold text-[#0F1115] text-xs">{product.differentiator_note}</dd>
               </div>
             )}
             {[
@@ -432,9 +469,9 @@ function ProductPage() {
               ["Finish", product.finish],
             ].map(([k, v]) =>
               v ? (
-                <div key={k as string} className="rounded-lg border border-border bg-card p-3 shadow-sm">
+                <div key={k as string} className="rounded-lg border border-[#E5E0D8] bg-white p-3 shadow-xs">
                   <dt className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">{k}</dt>
-                  <dd className="mt-1 font-semibold text-foreground text-xs">{v}</dd>
+                  <dd className="mt-1 font-semibold text-[#0F1115] text-xs">{v}</dd>
                 </div>
               ) : null,
             )}
@@ -444,7 +481,7 @@ function ProductPage() {
           <div className="flex gap-2.5 max-w-md pt-2">
             <AddToCollectionButton
               productId={product.id}
-              className="flex flex-1 items-center justify-center gap-2 rounded bg-primary px-5 py-3 text-xs font-bold uppercase tracking-wider text-primary-foreground hover:bg-primary/95 transition shadow-sm"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#0F1115] border border-[#C5A059]/40 px-5 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#1A1D24] hover:text-[#D4AF37] transition shadow-md"
             />
             <button
               onClick={handleToggleFavorite}
