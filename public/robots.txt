@@ -13,4 +13,4 @@ Allow: /
 User-agent: Googlebot-Image
 Allow: /
 
-Sitemap: https://showroom.enreach.concepts/sitemap.xml
+Sitemap: https://oniks365.ng/sitemap.xml
