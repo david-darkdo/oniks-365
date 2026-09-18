@@ -31,11 +31,24 @@
       ]
     },
     {
-      "source": "/(logo|logo-badge|favicon|apple-touch-icon|og-image).png",
+      "source": "/(logo|logo-badge|favicon|apple-touch-icon|icon-192|icon-512|og-image|oniks365-logo).png",
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
+          "value": "public, max-age=3600, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
+      "source": "/manifest(.*)",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json; charset=utf-8"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
         }
       ]
     }

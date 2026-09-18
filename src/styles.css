@@ -39,45 +39,47 @@
 }
 
 /*
- * Mature, refined palette: warm cream backgrounds with a single
- * sage / forest-green primary and a brushed-gold accent. Avoids the
- * heavy dark-green look of the reference mock.
+ * ONIKS365 Central Luxury Design Tokens:
+ * Deep Black + Near-Black + Warm Charcoal + Brushed Gold + ONIKS Orange + Warm Off-White
  */
 :root {
   --radius: 0.75rem;
 
-  /* Backgrounds — warm off-white, paper feel */
-  --background: oklch(0.985 0.005 95);
-  --foreground: oklch(0.18 0.012 145);
-  --surface: oklch(0.965 0.008 95);
-  --surface-2: oklch(0.94 0.012 95);
+  /* Backgrounds — warm ivory / off-white paper feel */
+  --background: #FAF8F5;
+  --foreground: #121316;
+  --surface: #F4F0EA;
+  --surface-2: #EFECE6;
 
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.012 145);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.012 145);
+  --card: #FFFFFF;
+  --card-foreground: #121316;
+  --popover: #FFFFFF;
+  --popover-foreground: #121316;
 
-  /* Primary: muted forest-sage green (mature, not vibrant) */
-  --primary: oklch(0.42 0.055 150);
-  --primary-foreground: oklch(0.98 0.005 95);
+  /* Primary: Deep Black */
+  --primary: #0F1115;
+  --primary-foreground: #FAF8F5;
 
-  /* Accent: brushed gold */
-  --gold: oklch(0.72 0.115 82);
-  --accent: oklch(0.72 0.115 82);
-  --accent-foreground: oklch(0.18 0.012 145);
+  /* Gold: Premium Brushed Gold */
+  --gold: #D4AF37;
+  --accent: #C5A059;
+  --accent-foreground: #0F1115;
 
-  --secondary: oklch(0.93 0.012 145);
-  --secondary-foreground: oklch(0.25 0.02 145);
+  /* Orange: Established ONIKS Orange */
+  --orange: #ea580c;
 
-  --muted: oklch(0.93 0.008 95);
-  --muted-foreground: oklch(0.45 0.012 145);
+  --secondary: #EFECE6;
+  --secondary-foreground: #0F1115;
 
-  --destructive: oklch(0.55 0.18 27);
-  --destructive-foreground: oklch(0.98 0 0);
+  --muted: #F0EDE6;
+  --muted-foreground: #6B6862;
 
-  --border: oklch(0.88 0.012 95);
-  --input: oklch(0.9 0.012 95);
-  --ring: oklch(0.42 0.055 150);
+  --destructive: #C0262D;
+  --destructive-foreground: #FFFFFF;
+
+  --border: #E5E0D8;
+  --input: #E2DDD5;
+  --ring: #C5A059;
 }
 
 @layer base {

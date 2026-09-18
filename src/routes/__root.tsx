@@ -114,8 +114,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "ONIKS365 — Premium Kitchen Solutions & Luxury Bathroom Fittings" },
       { name: "twitter:description", content: "Oniks365 is a trusted supplier of premium modern kitchen solutions and luxury bathroom fittings delivering quality, elegance, and functionality across Nigeria." },
-      { property: "og:image", content: "https://oniks365.ng/logo.png" },
-      { name: "twitter:image", content: "https://oniks365.ng/logo.png" },
+      { property: "og:image", content: "https://oniks365.ng/logo.png?v=2" },
+      { name: "twitter:image", content: "https://oniks365.ng/logo.png?v=2" },
     ];
 
     if (googleVerify) {
@@ -129,9 +129,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       meta,
       links: [
         { rel: "stylesheet", href: appCss },
-        { rel: "manifest", href: "/manifest.webmanifest" },
-        { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
-        { rel: "icon", href: "/favicon.png", type: "image/png" },
+        { rel: "manifest", href: "/manifest.webmanifest?v=2" },
+        { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=2" },
+        { rel: "icon", href: "/favicon.png?v=2", type: "image/png" },
       ],
     };
   },
