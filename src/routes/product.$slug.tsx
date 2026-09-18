@@ -179,14 +179,14 @@ function ProductPage() {
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const [lightboxScale, setLightboxScale] = useState(1);
 
-  // Synchronized smooth auto-cycle for installation gallery
+  // Synchronized smooth auto-cycle for installation gallery (every 4s, pausing on hover)
   useEffect(() => {
     if (installationImages.length <= 1 || isPaused) return;
     const interval = setInterval(() => {
       setActiveInstallationIndex((prev) => (prev + 1) % installationImages.length);
-    }, 4500);
+    }, 4000);
     return () => clearInterval(interval);
-  }, [installationImages.length, isPaused]);
+  }, [installationImages.length, isPaused, activeInstallationIndex]);
 
   const activeInstalledImage = installationImages[activeInstallationIndex] || installationImages[0] || null;
 
@@ -348,14 +348,14 @@ function ProductPage() {
         </nav>
 
         {/* Gallery Grid: Fixed Original Image (Left) + Switchable Installation Gallery (Right) */}
-        <div className="mt-3 grid gap-4 md:grid-cols-2">
+        <div className="mt-3 grid gap-6 md:grid-cols-2">
           {/* FIXED ORIGINAL MANUFACTURER IMAGE (Source of Truth — non-carousel) */}
-          <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm flex flex-col aspect-square">
-            <div className="flex-1 overflow-hidden flex items-center justify-center">
+          <div className="flex flex-col">
+            <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm aspect-square flex items-center justify-center">
               {originalImageUrl ? (
                 <img
                   src={originalImageUrl}
-                  alt={`${product.name} — Original Manufacturer Image`}
+                  alt={`${product.name} — Original Manufacturer`}
                   onClick={() => setLightboxImg(originalImageUrl)}
                   className="w-full h-full object-cover cursor-zoom-in hover:scale-[1.01] transition-transform duration-300"
                 />
@@ -363,24 +363,24 @@ function ProductPage() {
                 <div className="text-xs text-muted-foreground italic">No original manufacturer image</div>
               )}
             </div>
-            <div className="border-t border-border px-3.5 py-2 text-[9px] uppercase tracking-[0.18em] text-amber-600 font-bold bg-background shrink-0 flex items-center justify-between">
-              <span>Original Manufacturer Image</span>
-              <span className="text-[9px] font-normal text-muted-foreground">Source of Truth</span>
+            <div className="mt-2 text-center text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-semibold">
+              Original Manufacturer Image (Source of Truth)
             </div>
           </div>
 
           {/* SWITCHABLE INSTALLATION IMAGES GALLERY (Right) */}
-          <div
-            className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm flex flex-col aspect-square"
-            onMouseEnter={() => setIsPaused(true)}
-            onMouseLeave={() => setIsPaused(false)}
-          >
-            <div className="flex-1 overflow-hidden flex items-center justify-center bg-muted/10 relative">
+          <div className="flex flex-col">
+            {/* Full Visual Square Main Installation Viewport */}
+            <div
+              className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm aspect-square flex items-center justify-center"
+              onMouseEnter={() => setIsPaused(true)}
+              onMouseLeave={() => setIsPaused(false)}
+            >
               {activeInstalledImage ? (
                 <img
                   key={activeInstalledImage}
                   src={activeInstalledImage}
-                  alt={`${product.name} — Installation View ${activeInstallationIndex + 1}`}
+                  alt={`${product.name} — Installation View`}
                   loading="lazy"
                   onClick={() => setLightboxImg(activeInstalledImage)}
                   className="w-full h-full object-cover cursor-zoom-in hover:scale-[1.01] transition-all duration-300"
@@ -392,46 +392,38 @@ function ProductPage() {
               )}
             </div>
 
-            {/* Installation Gallery Footer & Selector */}
-            <div className="border-t border-border px-3.5 py-2.5 bg-background shrink-0 space-y-2">
-              <div className="flex items-center justify-between text-[9px] uppercase tracking-[0.18em] font-bold text-foreground">
-                <span className="text-amber-600">Installation Gallery</span>
-                {installationImages.length > 0 && (
-                  <span className="text-muted-foreground font-mono">
-                    View {activeInstallationIndex + 1} of {installationImages.length}
-                  </span>
-                )}
+            {/* Compact Photograph Thumbnail Rail (OUTSIDE & BELOW card — Zero Text Labels) */}
+            {installationImages.length > 1 && (
+              <div 
+                className="mt-2.5 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none snap-x"
+                onMouseEnter={() => setIsPaused(true)}
+                onMouseLeave={() => setIsPaused(false)}
+              >
+                {installationImages.map((imgUrl, idx) => {
+                  const isActive = activeInstallationIndex === idx;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveInstallationIndex(idx)}
+                      aria-label={`Installation photograph ${idx + 1}`}
+                      className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer snap-start ${
+                        isActive
+                          ? "border-amber-500 ring-2 ring-amber-500/40 shadow-md scale-100 opacity-100"
+                          : "border-border/80 hover:border-amber-500/50 opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <img
+                        src={imgUrl}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </button>
+                  );
+                })}
               </div>
-
-              {/* Compact Visual Photograph Thumbnail Cards */}
-              {installationImages.length > 1 && (
-                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none py-0.5">
-                  {installationImages.map((imgUrl, idx) => {
-                    const isActive = activeInstallationIndex === idx;
-                    return (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setActiveInstallationIndex(idx)}
-                        aria-label={`View installation photograph ${idx + 1}`}
-                        className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
-                          isActive
-                            ? "border-amber-500 ring-2 ring-amber-500/40 scale-105 shadow-md"
-                            : "border-border/80 hover:border-amber-500/50 opacity-70 hover:opacity-100"
-                        }`}
-                      >
-                        <img
-                          src={imgUrl}
-                          alt={`Installation preview ${idx + 1}`}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            )}
           </div>
         </div>
 

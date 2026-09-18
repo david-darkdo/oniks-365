@@ -122,12 +122,12 @@ function FeedPage() {
 
   return (
     <AppShell>
-      <div className="container-app pt-2 sm:pt-4 pb-12 space-y-4">
-        {/* Full-Width Visual Feed Hero Media Carousel */}
-        {feedHeroItems.length > 0 && (
-          <FeedHeroMedia items={feedHeroItems} />
-        )}
+      {/* Edge-to-Edge Visual Feed Hero Media Carousel */}
+      {feedHeroItems.length > 0 && (
+        <FeedHeroMedia items={feedHeroItems} />
+      )}
 
+      <div className="container-app pt-4 sm:pt-6 pb-12 space-y-4">
         {/* Product Attributes / Taxonomy Filters immediately below hero */}
         {/* Type row */}
         <FilterRow>

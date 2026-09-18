@@ -76,8 +76,8 @@ export const runProductDetailsEngine = createServerFn({ method: "POST" })
 
     const familyOverride = famRes.data?.custom_ai_prompt_override ?? null;
 
-    // 3. Load Active AI Prompt Template
-    const { data: activeTemplate } = await supabase
+    // 3. Load Active AI Prompt Template (Rule D3: No silent fallback - explicit DB template required)
+    const { data: activeTemplate, error: templateErr } = await supabase
       .from("ai_prompt_templates")
       .select("prompt_text")
       .eq("key", "product_details")
@@ -86,89 +86,13 @@ export const runProductDetailsEngine = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
 
-    const templateText = activeTemplate?.prompt_text || `You are ONIKS365 Product Intelligence AI & Google Discovery Engine for ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS, operating across Nigeria with primary commercial hubs in Abuja, Lagos, and Dei-Dei Building Materials Market, Abuja, Nigeria.
+    if (templateErr || !activeTemplate?.prompt_text) {
+      throw new Error(
+        "Active AI prompt template for 'product_details' not found in database. Please ensure the 'product_details' template is configured and active under Admin > AI Templates before running product generation."
+      );
+    }
 
-YOUR OBJECTIVE:
-Analyze the product input and original manufacturer image, then generate genuinely unique, product-specific commercial intelligence, professional copy, and local Google search discovery metadata tailored to the Nigerian building materials and luxury interior market.
-
-PERMANENT BUSINESS CONTEXT:
-- Company: ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS
-- Primary Markets & Geographic Search Hubs: Abuja, Nigeria | Lagos, Nigeria | Dei-Dei Building Materials Market, Abuja, Nigeria
-- Core Categories: Kitchen Solutions, Toilet & Bathroom Solutions, Sanitary Ware & Plumbing, Tiles, Doors, Finishing Materials, Stainless Steel, Architectural Fittings.
-
-STRICT UNIQUENESS & COPYWRITING RULES:
-1. BANNED CLICHÉ OPENINGS: NEVER start a description with "Discover", "Elevate", "Transform", "Designed for", "Perfect for", "Upgrade", "Experience", "Introducing", "Comprehensive, professional product description...".
-2. PRODUCT-DERIVED NARRATIVE STRUCTURE:
-   - OPENING: The first sentence MUST begin directly with the exact physical identity or core functionality of the product (e.g. for a kitchen sink: bowl layout, steel gauge, or button controls; for a WC: wall-hung design, vitreous china glaze, or dual-flush control; for a tile: porcelain format or surface finish; for a mixer tap: spout reach, ceramic valve, or finish).
-   - MIDDLE: Prioritize what actually matters for this specific product (e.g. anti-corrosion, splash control, load capacity, water efficiency, maintenance).
-   - ENDING: Provide practical commercial value or architectural application context. DO NOT reuse identical marketing boilerplate.
-3. NIGERIAN COMMERCIAL SEARCH DISCOVERY:
-   - Intelligently incorporate location signals ("Nigeria", "Abuja", "Lagos", "Dei-Dei", "Dei-Dei Building Materials Market") naturally into descriptions, customer search phrases, and local search tags.
-   - DO NOT keyword-stuff "Abuja, Lagos, Nigeria" in every sentence. Distribute references naturally based on field purpose.
-4. CANONICAL SLUG FORMAT:
-   - Provide a clean, URL-safe, lowercase, hyphen-separated slug derived strictly from the product name (e.g. "black-double-bowl-kitchen-sink").
-   - DO NOT include location keywords inside the slug.
-5. NO PLACEHOLDERS OR REPETITION: Every field must contain actual, rich, non-empty, product-specific values generated directly for this product.
-
-PRODUCT INPUT METADATA:
-Product Name: {product_name}
-Product Code: {code}
-Brand: {brand}
-Material: {material}
-Finish: {finish}
-Color: {color}
-Size: {size}
-Price: {price} NGN
-Type: {type}
-Category: {category}
-Subcategory: {subcategory}
-Family Group: {family}
-Installation Context: {context}
-
-OUTPUT REQUIREMENT:
-Return ONLY a valid, compact JSON object matching this exact key structure with zero extra text or markdown code blocks:
-
-{
-  "product_name": "{product_name}",
-  "product_type": "{type}",
-  "category": "{category}",
-  "subcategory": "{subcategory}",
-  "family_group": "{family}",
-  "brand": "{brand}",
-  "manufacturer": "{brand}",
-  "sku": "{code}",
-  "product_code": "{code}",
-  "size": "{size}",
-  "dimensions": "{size}",
-  "material": "{material}",
-  "finish": "{finish}",
-  "colour": "{color}",
-  "style": "",
-  "installation_type": "",
-  "installation_context": "{context}",
-  "product_description": "",
-  "product_highlights": [],
-  "product_features": [],
-  "product_benefits": [],
-  "seo_title": "",
-  "seo_description": "",
-  "seo_keywords": [],
-  "meta_keywords": [],
-  "slug": "",
-  "canonical_slug": "",
-  "google_search_tags": [],
-  "google_local_search_terms": [],
-  "search_keywords": [],
-  "search_synonyms": [],
-  "alternative_names": [],
-  "related_search_terms": [],
-  "customer_search_phrases": [],
-  "common_misspellings": [],
-  "location_keywords": ["Abuja", "Lagos", "Nigeria", "Dei-Dei Building Materials Market"],
-  "showroom_search_index": [],
-  "open_graph_title": "",
-  "open_graph_description": ""
-}`;
+    const templateText = activeTemplate.prompt_text;
 
     const systemPrompt = `You are ONIKS365 Product Intelligence AI, an expert in premium sanitary ware, luxury bathroom fittings, modern kitchen solutions, kitchen appliances, smart space-saving storage systems, building materials, showroom product merchandising, customer discovery, and Google SEO in Nigeria.
 

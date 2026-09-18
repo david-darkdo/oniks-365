@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight, Volume2, VolumeX, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Volume2, VolumeX } from "lucide-react";
 import type { FeedHeroItem } from "@/lib/catalog";
 
 interface FeedHeroMediaProps {
@@ -15,7 +15,7 @@ export function FeedHeroMedia({ items }: FeedHeroMediaProps) {
   const activeItems = items && items.length > 0 ? items : [];
   const currentItem = activeItems[currentIndex] || null;
 
-  // Next / Prev slide handlers
+  // Next / Prev slide navigation
   const goToNext = () => {
     if (activeItems.length <= 1) return;
     setCurrentIndex((prev) => (prev + 1) % activeItems.length);
@@ -26,7 +26,24 @@ export function FeedHeroMedia({ items }: FeedHeroMediaProps) {
     setCurrentIndex((prev) => (prev - 1 + activeItems.length) % activeItems.length);
   };
 
-  // Auto-advance logic
+  // Video autoplay & reset whenever active slide changes
+  useEffect(() => {
+    if (currentItem?.media_type === "video" && videoRef.current) {
+      try {
+        videoRef.current.currentTime = 0;
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(() => {
+            // Autoplay may be deferred until user interaction
+          });
+        }
+      } catch {
+        // Fallback for media element errors
+      }
+    }
+  }, [currentIndex, currentItem]);
+
+  // Auto-advance logic: ONLY runs for images. Videos advance strictly on natural end (onEnded)
   useEffect(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
@@ -60,14 +77,17 @@ export function FeedHeroMedia({ items }: FeedHeroMediaProps) {
   }
 
   return (
-    <div className="relative w-full rounded-2xl overflow-hidden border border-border/70 bg-neutral-950 shadow-md aspect-[16/8] sm:aspect-[21/9] md:aspect-[24/9] max-h-[360px] select-none group">
-      {/* Background Media Slides */}
+    <section 
+      aria-label="Showroom Visual Discovery Feed"
+      className="relative w-full overflow-hidden bg-neutral-950 aspect-[16/9] sm:aspect-[21/9] lg:aspect-[24/9] select-none group"
+    >
+      {/* Visual Media Carousel Slides */}
       {activeItems.map((item, idx) => {
         const isActive = idx === currentIndex;
         return (
           <div
             key={item.id}
-            className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
               isActive ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
             }`}
           >
@@ -78,6 +98,7 @@ export function FeedHeroMedia({ items }: FeedHeroMediaProps) {
                 autoPlay={isActive}
                 muted={isMuted}
                 playsInline
+                preload="auto"
                 loop={activeItems.length === 1}
                 onEnded={handleVideoEnded}
                 className="w-full h-full object-cover"
@@ -85,37 +106,18 @@ export function FeedHeroMedia({ items }: FeedHeroMediaProps) {
             ) : (
               <img
                 src={item.media_url}
-                alt={item.title || "ONIKS 365 Showroom"}
-                className="w-full h-full object-cover transform scale-100 group-hover:scale-[1.02] transition-transform duration-1000 ease-out"
+                alt={item.title || "ONIKS 365 Visual Showcase"}
+                className="w-full h-full object-cover transform scale-100 group-hover:scale-[1.01] transition-transform duration-1000 ease-out"
                 loading={idx === 0 ? "eager" : "lazy"}
               />
             )}
-            {/* Cinematic Gradient Overlays */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent pointer-events-none" />
+            {/* Subtle bottom shadow vignette strictly for slide indicator contrast */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
           </div>
         );
       })}
 
-      {/* Content Overlay */}
-      <div className="absolute inset-0 z-20 flex flex-col justify-end p-5 sm:p-7 md:p-8 pointer-events-none">
-        <div className="max-w-xl space-y-2">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/20 backdrop-blur-md px-3 py-1 border border-amber-500/40 text-[10px] sm:text-xs uppercase tracking-[0.18em] font-bold text-amber-300">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>{currentItem.title || "ONIKS 365 SHOWROOM"}</span>
-          </div>
-
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-tight">
-            Luxury Sanitary & Architectural Showcase
-          </h2>
-
-          <p className="text-xs sm:text-sm text-neutral-300 line-clamp-2 max-w-lg font-light">
-            Nigeria's foremost destination for precision-engineered kitchen sinks, sanitary fixtures, and luxury architectural fittings.
-          </p>
-        </div>
-      </div>
-
-      {/* Media Controls (Video Mute/Unmute) */}
+      {/* Media Audio Toggle (Top Right for Videos) */}
       {currentItem.media_type === "video" && (
         <button
           onClick={(e) => {
@@ -123,13 +125,13 @@ export function FeedHeroMedia({ items }: FeedHeroMediaProps) {
             setIsMuted(!isMuted);
           }}
           aria-label={isMuted ? "Unmute video" : "Mute video"}
-          className="absolute top-4 right-4 z-30 p-2 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md text-white/90 hover:text-white border border-white/20 transition shadow-sm"
+          className="absolute top-4 right-4 z-30 p-2.5 rounded-full bg-black/60 hover:bg-black/85 backdrop-blur-md text-white/90 hover:text-white border border-white/20 transition shadow-md"
         >
           {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
         </button>
       )}
 
-      {/* Navigation Arrows (for multiple items) */}
+      {/* Slide Navigation Arrows */}
       {activeItems.length > 1 && (
         <>
           <button
@@ -138,7 +140,7 @@ export function FeedHeroMedia({ items }: FeedHeroMediaProps) {
               goToPrev();
             }}
             aria-label="Previous Slide"
-            className="absolute left-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/40 hover:bg-black/75 backdrop-blur-md text-white/80 hover:text-white border border-white/10 opacity-0 group-hover:opacity-100 transition shadow-md"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md text-white/80 hover:text-white border border-white/10 opacity-0 group-hover:opacity-100 transition shadow-lg"
           >
             <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
@@ -148,13 +150,13 @@ export function FeedHeroMedia({ items }: FeedHeroMediaProps) {
               goToNext();
             }}
             aria-label="Next Slide"
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/40 hover:bg-black/75 backdrop-blur-md text-white/80 hover:text-white border border-white/10 opacity-0 group-hover:opacity-100 transition shadow-md"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md text-white/80 hover:text-white border border-white/10 opacity-0 group-hover:opacity-100 transition shadow-lg"
           >
             <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
-          {/* Indicator Dots */}
-          <div className="absolute bottom-4 right-5 sm:right-7 z-30 flex items-center gap-1.5 pointer-events-auto">
+          {/* Minimal Bottom Indicator Dots */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 pointer-events-auto">
             {activeItems.map((_, idx) => (
               <button
                 key={idx}
@@ -162,15 +164,15 @@ export function FeedHeroMedia({ items }: FeedHeroMediaProps) {
                   e.stopPropagation();
                   setCurrentIndex(idx);
                 }}
-                aria-label={`Slide ${idx + 1}`}
+                aria-label={`Go to slide ${idx + 1}`}
                 className={`h-1.5 rounded-full transition-all duration-300 ${
-                  currentIndex === idx ? "w-6 bg-amber-400" : "w-1.5 bg-white/40 hover:bg-white/70"
+                  currentIndex === idx ? "w-7 bg-amber-400 shadow-xs" : "w-1.5 bg-white/40 hover:bg-white/75"
                 }`}
               />
             ))}
           </div>
         </>
       )}
-    </div>
+    </section>
   );
 }
