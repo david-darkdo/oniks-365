@@ -98,7 +98,6 @@ export async function fetchFeedProductsPaginated(
       _q: term,
       _limit: 500,
     } as any);
-
     if (ranked && Array.isArray(ranked)) {
       ranked.forEach((r: any) => { if (r?.product_id) matchedIdSet.add(r.product_id); });
     }

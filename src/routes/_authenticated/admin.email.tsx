@@ -604,7 +604,7 @@ function CommunicationCenterPage() {
                           <Smartphone className="h-3 w-3" />
                           <span>PUSH NOTIFICATION</span>
                         </div>
-                        <div className="font-bold text-[11px]">{editingCampaign.subject || "Enreach Showroom"}</div>
+                        <div className="font-bold text-[11px]">{editingCampaign.subject || "ONIKS365 Showroom"}</div>
                         <div className="text-[10px] leading-tight text-muted-foreground mt-0.5 line-clamp-3">{editingCampaign.body.replace(/\{\{\s*customer_name\s*\}\}/g, "John Doe")}</div>
                       </div>
                     </div>

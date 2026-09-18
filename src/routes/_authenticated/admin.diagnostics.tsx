@@ -332,7 +332,7 @@ function DiagnosticsPage() {
     loadConfig();
     loadDiscovery();
     runReadinessChecks();
-    const saved = localStorage.getItem("stoneworks.launch_checklist");
+    const saved = localStorage.getItem("oniks365.launch_checklist");
     if (saved) {
       try {
         setChecklist(JSON.parse(saved));
@@ -343,7 +343,7 @@ function DiagnosticsPage() {
   const toggleChecklistItem = (id: any) => {
     const updated = checklist.map(item => item.id === id ? { ...item, done: !item.done } : item);
     setChecklist(updated);
-    localStorage.setItem("stoneworks.launch_checklist", JSON.stringify(updated));
+    localStorage.setItem("oniks365.launch_checklist", JSON.stringify(updated));
     toast.success("Launch checklist progress saved!");
   };
 

@@ -9,7 +9,7 @@ import { Heart, ArrowRight } from "lucide-react";
 import type { ProductRow } from "@/lib/catalog";
 
 export const Route = createFileRoute("/_authenticated/favorites")({
-  head: () => ({ meta: [{ title: "My Favorites — Enreach Concepts" }] }),
+  head: () => ({ meta: [{ title: "My Favorites — ONIKS365" }] }),
   component: FavoritesPage,
 });
 

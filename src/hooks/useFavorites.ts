@@ -3,9 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 
-const GUEST_STORAGE_KEY = "enreach_favorites_v2";
-const USER_STORAGE_KEY_PREFIX = "enreach_favorites_user_v2_";
-const EVENT_NAME = "enreach_favorites_changed";
+const GUEST_STORAGE_KEY = "oniks365_favorites_v2";
+const USER_STORAGE_KEY_PREFIX = "oniks365_favorites_user_v2_";
+const EVENT_NAME = "oniks365_favorites_changed";
 
 function getGuestFavorites(): string[] {
   if (typeof window === "undefined") return [];

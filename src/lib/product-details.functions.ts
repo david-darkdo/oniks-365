@@ -168,7 +168,7 @@ Return ONLY a valid, compact JSON object matching this exact key structure with 
   "showroom_search_index": [],
   "open_graph_title": "",
   "open_graph_description": ""
-} `;
+}`;
 
     const systemPrompt = `You are ONIKS365 Product Intelligence AI, an expert in premium sanitary ware, luxury bathroom fittings, modern kitchen solutions, kitchen appliances, smart space-saving storage systems, building materials, showroom product merchandising, customer discovery, and Google SEO in Nigeria.
 

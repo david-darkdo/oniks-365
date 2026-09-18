@@ -32,9 +32,9 @@ export const Route = createFileRoute("/collection/$id")({
     return { imageUrl };
   },
   head: ({ loaderData }) => {
-    const title = "Shared Project Collection — Enreach Concepts";
-    const desc = "Check out this curated building materials project quotation request on Enreach Concepts.";
-    const img = (loaderData as any)?.imageUrl || "https://enreachconcepts.com/logo.png";
+    const title = "Shared Project Collection — ONIKS365";
+    const desc = "Check out this curated kitchen & bathroom solutions project quotation request on ONIKS365.";
+    const img = (loaderData as any)?.imageUrl || "https://oniks365.ng/logo.png";
     return {
       meta: [
         { title: title },

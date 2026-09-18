@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -23,6 +23,7 @@ import {
   type ItemRequirements,
   type CollectionV2
 } from "@/lib/collection";
+import { getCanonicalProductSlug } from "@/lib/product-url";
 import { useAppSettings, waLink } from "@/lib/settings";
 import { toast } from "sonner";
 import { MessageCircle, Share2, Trash2, Heart, ChevronDown, ChevronUp, Lock, RefreshCw, FileText, Phone, CheckCircle2, AlertCircle, History, Layers } from "lucide-react";
@@ -34,13 +35,13 @@ export const Route = createFileRoute("/collection")({
       autoPush: search.autoPush === "true" || search.autoPush === true ? true : undefined,
     };
   },
-  head: () => ({ meta: [{ title: "Active Project Workspace — Enreach Concepts" }] }),
+  head: () => ({ meta: [{ title: "Active Project Workspace — ONIKS365" }] }),
   component: CollectionPage,
 });
 
 function CollectionPage() {
   const { user, loading } = useAuth();
-  const search = useSearch({ from: "/collection" });
+  const search = Route.useSearch();
   const navigate = useNavigate();
   const { data: settings } = useAppSettings();
 
@@ -288,7 +289,7 @@ function CollectionPage() {
 
     // 1. Construct WhatsApp message synchronously (< 16ms)
     const messageParts = [
-      "Hello Enreach Concepts,",
+      "Hello ONIKS365,",
       "",
       "I would like a quotation for my project.",
       "",
@@ -376,8 +377,16 @@ function CollectionPage() {
       return;
     }
     const url = `${window.location.origin}/collection/${id}`;
-    await navigator.clipboard.writeText(url);
-    toast.success("Link copied to clipboard");
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copied to clipboard");
+      } else {
+        toast.success("Link: " + url);
+      }
+    } catch {
+      toast("Link: " + url);
+    }
   };
 
   return (
@@ -403,7 +412,13 @@ function CollectionPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#C5A059]/40 bg-[#0F1115] px-3.5 py-2 text-xs font-bold text-[#D4AF37] hover:bg-[#1A1D24] transition shrink-0 shadow-xs"
+          >
+            <span>Storefront Feed</span>
+          </Link>
           {user && (
             <Link
               to="/my-collections"
@@ -445,7 +460,7 @@ function CollectionPage() {
                 href={whatsappFallbackUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-xs font-bold text-white hover:bg-emerald-700 shadow-md transition"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#25D366] px-6 py-3 text-xs font-bold text-white hover:bg-[#1EBE5D] shadow-md transition"
               >
                 <MessageCircle className="h-4 w-4" />
                 Launch WhatsApp Now
@@ -538,7 +553,7 @@ function CollectionPage() {
                           <div>
                             <Link
                               to="/product/$slug"
-                              params={{ slug: product.slug }}
+                              params={{ slug: getCanonicalProductSlug(product) }}
                               className="font-semibold text-sm text-foreground hover:text-primary transition line-clamp-1"
                             >
                               {product.name}
@@ -713,7 +728,7 @@ function CollectionPage() {
               <button
                 onClick={handlePushToWhatsAppClick}
                 disabled={isSubmitting}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-sm font-bold text-white hover:bg-emerald-700 active:scale-[0.99] transition shadow-md disabled:opacity-50"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-5 py-3.5 text-sm font-bold text-white hover:bg-[#1EBE5D] active:scale-[0.99] transition shadow-md disabled:opacity-50"
               >
                 <MessageCircle className="h-5 w-5" />
                 <span>Push Collection to WhatsApp</span>

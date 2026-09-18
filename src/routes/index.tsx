@@ -43,10 +43,10 @@ export const Route = createFileRoute("/")({
   },
   head: () => ({
     meta: [
-      { title: "Discover — Enreach Building Materials Showroom" },
+      { title: "Discover — ONIKS365 Kitchen & Bathroom Showroom" },
       {
         name: "description",
-        content: "Browse curated tiles, security doors, plumbing and custom architectural finishes.",
+        content: "Discover luxury sanitary ware, bathroom fittings, kitchen solutions, appliances, and space-saving kitchen systems at ONIKS365.",
       },
     ],
   }),
@@ -267,10 +267,10 @@ function Pill({
     <button
       type="button"
       onClick={onClick}
-      className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-medium uppercase tracking-wider transition ${
+      className={`shrink-0 rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
         active
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-card text-muted-foreground hover:border-primary hover:text-primary"
+          ? "border-[#C5A059] bg-[#0F1115] text-[#D4AF37] shadow-md ring-1 ring-[#C5A059]/40"
+          : "border-[#E5E0D8] bg-white text-gray-600 hover:border-[#C5A059] hover:text-[#ea580c]"
       }`}
     >
       {children}

@@ -65,7 +65,7 @@ export class GeminiProvider implements AIProvider {
     
     let url = "";
     if (isVertex) {
-      const projectId = process.env.GCP_PROJECT_ID || "de-enreach-gemini-api-key";
+      const projectId = process.env.GCP_PROJECT_ID || "oniks365-gemini-api-key";
       const region = process.env.GCP_REGION || "us-central1";
       url = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${model}:generateContent?key=${key}`;
     } else {
@@ -163,7 +163,7 @@ export class GeminiProvider implements AIProvider {
 
     let url = "";
     if (isVertex) {
-      const projectId = process.env.GCP_PROJECT_ID || "de-enreach-gemini-api-key";
+      const projectId = process.env.GCP_PROJECT_ID || "oniks365-gemini-api-key";
       const region = process.env.GCP_REGION || "us-central1";
       url = `https://${region}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${region}/publishers/google/models/${model}:predict?key=${key}`;
     } else {

@@ -2,10 +2,10 @@
 
 ## Completed & Verified Modules
 *   **Infrastructure Migration**: Decoupled from Lovable wrappers. Vite compiles standard client and server (Nitro SSR) environments, producing `.output` and `.vercel/output` structures.
-*   **Database Schema**: Successfully pushed all 18 SQL migrations to the new Supabase project (`hcvusncrtueuclvfdhkd`). Verified the presence of all 22 tables, 15 triggers, 18 functions/RPCs, and 59 RLS policies.
+*   **Database Schema**: Successfully pushed all SQL migrations to the ONIKS365 Supabase project (`zmjkxqyjkmoctdbmrjjg`). Verified the presence of all tables, triggers, functions/RPCs, and RLS policies including customer_profiles.
 *   **Storage Model**: Replaced Supabase Storage bucket with Cloudinary. Direct client uploads use unsigned presets, and server-side uploads run with signed parameters. Initialized `product-images` storage bucket in Supabase for backward compatibility.
 *   **Super Admin Access**: Assigned `daviddarkdo@gmail.com` the `super_admin` role in `public.user_roles` to allow immediate access to the Admin Command Center.
-*   **Google OAuth Redirects**: Patched the Site URL to `https://catalogue-harmony-hub.vercel.app` and added allow-list redirects for local development and Vercel.
+*   **Google OAuth Redirects**: Patched the Site URL to `https://oniks365.ng` and added allow-list redirects for local development and Vercel.
 
 ## Partially Completed Modules
 *   **AI Queue Runner**: Pipeline jobs are tracked in the database, but execution is triggered client-side (manually in `admin.pipeline.tsx` or on product creation). If the admin closes their tab, the queue stalls.

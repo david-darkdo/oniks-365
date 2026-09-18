@@ -13,7 +13,7 @@ import { FileText, RefreshCw, Lock, Calendar, Layers, ArrowLeft, ChevronDown, Ch
 import { publicImageUrl } from "@/components/ImageUploader";
 
 export const Route = createFileRoute("/my-collections")({
-  head: () => ({ meta: [{ title: "My Collection History — Enreach Concepts" }] }),
+  head: () => ({ meta: [{ title: "My Collection History — ONIKS365" }] }),
   component: MyCollectionsHistoryPage,
 });
 
@@ -133,8 +133,8 @@ function MyCollectionsHistoryPage() {
             Permanent immutable record of your submitted project quotation requests.
           </p>
         </div>
-        <Link to="/collection" className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition shrink-0">
-          <Layers className="h-4 w-4" /> Go to Active Workspace
+        <Link to="/collection" className="inline-flex items-center gap-2 rounded-lg bg-[#0F1115] border border-[#C5A059]/40 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#1A1D24] hover:text-[#D4AF37] transition shrink-0 shadow-md">
+          <Layers className="h-4 w-4 text-[#D4AF37]" /> Go to Active Workspace
         </Link>
       </div>
 

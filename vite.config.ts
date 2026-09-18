@@ -14,6 +14,12 @@ export default defineConfig({
     }),
     nitro({
       preset: "vercel",
+      minify: false,
+      rollupConfig: {
+        output: {
+          minifyInternalExports: false,
+        },
+      },
     }),
     react(),
   ],

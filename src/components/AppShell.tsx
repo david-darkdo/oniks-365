@@ -45,10 +45,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       void syncOfflineActions();
     };
     const handleOffline = () => {
-      toast.warning("Working offline. Actions will be queued.");
+      toast.warning("Connection lost. Running in offline resilience mode.");
     };
+
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
+
+    if (navigator.onLine) {
+      void syncOfflineActions();
+    }
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
@@ -56,33 +62,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-between">
-      <div>
-        <TopBar />
-        <main className="pb-16 md:pb-0">{children}</main>
-      </div>
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <TopBar />
+      <main className="flex-1 pb-16 md:pb-6">{children}</main>
 
-      {/* Trust Features Scrolling Ribbon */}
+      {/* Seamless Scrolling Marquee Trust Ticker Belt */}
       {trustFeatures.length > 0 && (
-        <section className="bg-[#0B0C0E] border-y border-[#C5A059]/30 py-2.5 overflow-hidden relative shadow-inner">
+        <section className="fixed bottom-12 md:bottom-0 left-0 right-0 z-20 border-t border-[#C5A059]/20 bg-[#14161B]/95 py-2.5 shadow-md overflow-hidden backdrop-blur select-none text-gray-200">
           <style>{`
             @keyframes marquee {
-              0% { transform: translateX(0%); }
+              0% { transform: translateX(0); }
               100% { transform: translateX(-50%); }
             }
             .animate-marquee {
               display: flex;
               width: max-content;
-              animation: marquee 35s linear infinite;
-            }
-            .animate-marquee:hover {
-              animation-play-state: paused;
+              animation: marquee 30s linear infinite;
             }
           `}</style>
-          <div className="animate-marquee flex gap-8 items-center">
-            {/* First sequence */}
+          
+          <div className="animate-marquee flex items-center gap-16 px-4">
+            {/* First Set */}
             {trustFeatures.map((t) => {
               const IconComponent =
+                t.icon_name === "Shield" ? Shield :
                 t.icon_name === "Truck" ? Truck :
                 t.icon_name === "CreditCard" ? CreditCard :
                 t.icon_name === "Headphones" ? Headphones : HelpCircle;
@@ -99,9 +102,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
               );
             })}
-            {/* Duplicate sequence for seamless loop */}
+            
+            {/* Duplicated Second Set for Seamless Loop */}
             {trustFeatures.map((t) => {
               const IconComponent =
+                t.icon_name === "Shield" ? Shield :
                 t.icon_name === "Truck" ? Truck :
                 t.icon_name === "CreditCard" ? CreditCard :
                 t.icon_name === "Headphones" ? Headphones : HelpCircle;

@@ -96,8 +96,8 @@ export function AddToCollectionButton({
         className ??
         `flex flex-1 items-center justify-center gap-1 rounded-md border ${
           added
-            ? "border-emerald-600/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold shadow-xs"
-            : "border-border bg-surface-2 text-foreground hover:border-primary hover:text-primary font-medium"
+            ? "border-[#C5A059] bg-[#C5A059]/15 text-[#ea580c] font-bold shadow-xs"
+            : "border-[#E5E0D8] bg-[#FAF8F5] text-[#0F1115] hover:border-[#C5A059] hover:text-[#ea580c] font-semibold"
         } px-2.5 py-1.5 text-[11px] transition-all duration-150 active:scale-95`
       }
     >

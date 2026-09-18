@@ -13,7 +13,7 @@ export const Route = createFileRoute("/auth")({
     };
   },
   head: () => ({
-    meta: [{ title: "Sign in — Enreach Concepts" }],
+    meta: [{ title: "Sign in — ONIKS365" }],
   }),
   component: AuthPage,
 });
@@ -103,7 +103,15 @@ function AuthPage() {
 
   return (
     <div className="container-app max-w-md py-10">
-      <h1 className="font-display text-2xl font-semibold">{mode === "signin" ? "Sign in" : "Create account"}</h1>
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <h1 className="font-display text-2xl font-semibold">{mode === "signin" ? "Sign in" : "Create account"}</h1>
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 rounded-full border border-[#C5A059]/40 bg-[#0F1115] px-3.5 py-1.5 text-xs font-bold text-[#D4AF37] hover:bg-[#1A1D24] transition shrink-0 shadow-xs"
+        >
+          <span>Storefront Feed</span>
+        </Link>
+      </div>
       <p className="mt-1 text-sm text-muted-foreground">
         {mode === "signin" ? "Sync your collection across devices and submit quotation requests." : "Save & share collections, push to WhatsApp."}
       </p>
@@ -163,9 +171,14 @@ function AuthPage() {
           {mode === "signin" ? "Create account" : "Sign in"}
         </button>
       </p>
-      <p className="mt-4 text-center text-xs text-muted-foreground">
-        <Link to="/" className="hover:text-foreground">← Back to feed</Link>
-      </p>
+      <div className="mt-6 text-center">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 rounded-full border border-[#C5A059]/40 bg-[#0F1115] px-4 py-2 text-xs font-bold text-[#D4AF37] hover:bg-[#1A1D24] transition shadow-xs"
+        >
+          <span>Storefront Feed</span>
+        </Link>
+      </div>
     </div>
   );
 }

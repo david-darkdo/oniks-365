@@ -160,7 +160,7 @@ async function interpolatePrompt(supabase: any, templateText: string, product: a
     .replace(/{category}/g, categoryName)
     .replace(/{type}/g, typeName)
     .replace(/{product_type}/g, typeName)
-    .replace(/{company_name}/g, "Enreach Concepts")
+    .replace(/{company_name}/g, "ONIKS365")
     .replace(/{company_email}/g, settings?.company_email ?? "")
     .replace(/{company_address}/g, settings?.company_address ?? "")
     .replace(/{company_phone}/g, settings?.sales_whatsapp ?? settings?.support_whatsapp ?? "");
@@ -407,7 +407,7 @@ export const getAIConfigDetails = createServerFn({ method: "GET" })
         imageModel: settings?.gemini_image_model || "imagen-3.0-generate-002",
         geminiUseVertex: settings?.gemini_use_vertex ?? false,
         isVertex: settings?.gemini_use_vertex ?? geminiKey.startsWith("AQ"),
-        projectId: process.env.GCP_PROJECT_ID || "de-enreach-gemini-api-key",
+        projectId: process.env.GCP_PROJECT_ID || "oniks365-gemini-api-key",
         region: process.env.GCP_REGION || "us-central1",
       },
       claude: {

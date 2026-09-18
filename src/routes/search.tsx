@@ -29,8 +29,8 @@ export const Route = createFileRoute("/search")({
   validateSearch: validateSearch,
   head: () => ({
     meta: [
-      { title: "Search — Stoneworks" },
-      { name: "description", content: "Search across the catalogue." },
+      { title: "Search — ONIKS365" },
+      { name: "description", content: "Search premium sanitary ware, luxury bathroom fittings, kitchen sinks, ovens and appliances at ONIKS365." },
     ],
   }),
   component: SearchPage,

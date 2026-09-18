@@ -9,7 +9,7 @@ import { Settings as SettingsIcon, ShieldAlert } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "Company Settings — SOLIDAS TILES AND MARBLE NIG. LIMITED" }] }),
+  head: () => ({ meta: [{ title: "Business Settings — ONIKS365" }] }),
   component: SettingsPage,
 });
 
@@ -54,7 +54,7 @@ function SettingsPage() {
       toast.error(error.message);
       return;
     }
-    toast.success("SOLIDAS Company Settings saved");
+    toast.success("ONIKS365 Business Settings saved successfully");
     await queryClient.invalidateQueries({ queryKey: APP_SETTINGS_QUERY_KEY });
   };
 
@@ -66,13 +66,13 @@ function SettingsPage() {
     return (
       <AppShell>
         <div className="container-app py-12">
-          <div className="rounded-xl border border-[#C0262D]/30 bg-[#C0262D]/5 p-6 max-w-md mx-auto">
-            <div className="flex items-center gap-2 text-[#C0262D]">
+          <div className="rounded-xl border border-rose-600/30 bg-rose-600/5 p-6 max-w-md mx-auto">
+            <div className="flex items-center gap-2 text-rose-600">
               <ShieldAlert className="h-5 w-5" />
               <h1 className="font-display text-lg font-bold">Super Admin Only</h1>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
-              SOLIDAS company settings can only be edited by a super admin.
+              ONIKS365 business settings can only be edited by a super admin.
             </p>
             <Link to="/account" className="mt-4 inline-block rounded-lg border border-border bg-white px-4 py-2 text-xs font-bold hover:bg-surface-2">
               Back to Account
@@ -87,9 +87,9 @@ function SettingsPage() {
     <AppShell>
       <div className="container-app py-8 space-y-6">
         <div className="flex items-center gap-2 border-b border-border pb-4">
-          <SettingsIcon className="h-6 w-6 text-[#1E82A6]" />
+          <SettingsIcon className="h-6 w-6 text-amber-600" />
           <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">SOLIDAS Company Settings</h1>
+            <h1 className="font-display text-2xl font-bold text-foreground">ONIKS365 Business Settings</h1>
             <p className="text-xs text-muted-foreground">
               Configure corporate phone numbers, WhatsApp, addresses, and Search Console verification tokens.
             </p>
@@ -99,13 +99,13 @@ function SettingsPage() {
         <form onSubmit={save} className="grid gap-4 sm:grid-cols-2">
           {FIELDS.map(([key, label, hint]) => (
             <label key={key} className="text-xs space-y-1">
-              <span className="block font-bold uppercase tracking-wider text-[#1E82A6]">
+              <span className="block font-bold uppercase tracking-wider text-amber-600">
                 {label}
               </span>
               <input
                 value={form[key] ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-                className="w-full rounded-lg border border-border bg-white px-3.5 py-2 text-sm text-foreground outline-none focus:border-[#1E82A6]"
+                className="w-full rounded-lg border border-border bg-white px-3.5 py-2 text-sm text-foreground outline-none focus:border-amber-600"
               />
               {hint && <span className="block text-[11px] text-muted-foreground">{hint}</span>}
             </label>
@@ -113,9 +113,9 @@ function SettingsPage() {
           <div className="sm:col-span-2 pt-2">
             <button
               disabled={saving}
-              className="rounded-lg bg-[#C0262D] px-6 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#9A1B21] disabled:opacity-60 transition shadow-sm"
+              className="rounded-lg bg-[#0F1115] border border-[#C5A059]/40 px-6 py-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#1A1D24] hover:text-[#D4AF37] disabled:opacity-60 transition shadow-md"
             >
-              {saving ? "Saving…" : "Save SOLIDAS Settings"}
+              {saving ? "Saving…" : "Save ONIKS365 Settings"}
             </button>
           </div>
         </form>
