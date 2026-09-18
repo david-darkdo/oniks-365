@@ -215,7 +215,7 @@ function TopBar() {
       <div className="container-app flex items-center gap-4 py-3">
         <Link to="/" className="flex items-center gap-3 group">
           <img
-            src="/logo.png"
+            src="/oniks365-logo.png?v=3"
             alt="ONIKS365 Logo"
             className="h-9 w-auto object-contain transition group-hover:scale-105"
           />

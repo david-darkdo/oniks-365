@@ -31,7 +31,7 @@
       ]
     },
     {
-      "source": "/(logo|logo-badge|favicon|apple-touch-icon|icon-192|icon-512|og-image|oniks365-logo).png",
+      "source": "/(logo|logo-badge|favicon|apple-touch-icon|icon-192|icon-512|og-image|oniks365-logo).(png|ico)",
       "headers": [
         {
           "key": "Cache-Control",

@@ -114,8 +114,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "ONIKS365 — Premium Kitchen Solutions & Luxury Bathroom Fittings" },
       { name: "twitter:description", content: "Oniks365 is a trusted supplier of premium modern kitchen solutions and luxury bathroom fittings delivering quality, elegance, and functionality across Nigeria." },
-      { property: "og:image", content: "https://oniks365.ng/logo.png?v=2" },
-      { name: "twitter:image", content: "https://oniks365.ng/logo.png?v=2" },
+      { property: "og:image", content: "https://oniks365.ng/oniks365-logo.png?v=3" },
+      { name: "twitter:image", content: "https://oniks365.ng/oniks365-logo.png?v=3" },
     ];
 
     if (googleVerify) {
@@ -129,9 +129,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       meta,
       links: [
         { rel: "stylesheet", href: appCss },
-        { rel: "manifest", href: "/manifest.webmanifest?v=2" },
-        { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=2" },
-        { rel: "icon", href: "/favicon.png?v=2", type: "image/png" },
+        { rel: "manifest", href: "/manifest.webmanifest?v=3" },
+        { rel: "apple-touch-icon", href: "/apple-touch-icon.png?v=3" },
+        { rel: "icon", href: "/favicon.png?v=3", type: "image/png" },
+        { rel: "shortcut icon", href: "/favicon.ico?v=3" },
       ],
     };
   },
@@ -148,7 +149,7 @@ function RootShell({ children }: { children: ReactNode }) {
     "name": "ONIKS365",
     "legalName": "ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS",
     "url": "https://oniks365.ng",
-    "logo": "https://oniks365.ng/logo.png",
+    "logo": "https://oniks365.ng/oniks365-logo.png?v=3",
     "description": "ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS — supplying premium modern kitchen solutions and luxury bathroom fittings across Nigeria.",
     "address": [
       {
@@ -283,7 +284,7 @@ function RootAppWrapper() {
     "@type": "Organization",
     "name": (settings as any)?.company_name || "ONIKS365",
     "url": typeof window !== "undefined" ? window.location.origin : "https://oniks365.ng",
-    "logo": (settings as any)?.company_logo || (typeof window !== "undefined" ? `${window.location.origin}/logo.png` : "https://oniks365.ng/logo.png"),
+    "logo": (settings as any)?.company_logo || (typeof window !== "undefined" ? `${window.location.origin}/oniks365-logo.png?v=3` : "https://oniks365.ng/oniks365-logo.png?v=3"),
     "contactPoint": {
       "@type": "ContactPoint",
       "telephone": settings?.support_whatsapp || "",
@@ -322,7 +323,7 @@ function RootAppWrapper() {
             `}</style>
             <div className="flex flex-col items-center gap-4 animate-breathing">
               <img
-                src="/logo.png"
+                src="/oniks365-logo.png?v=3"
                 alt="ONIKS365 Logo"
                 className="h-16 w-auto object-contain"
               />

@@ -55,7 +55,7 @@ export function SiteFooter() {
       <div className="container-app grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-3">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.png" alt="ONIKS365 Logo" className="h-10 w-auto object-contain" />
+            <img src="/oniks365-logo.png?v=3" alt="ONIKS365 Logo" className="h-10 w-auto object-contain" />
             <div className="font-display text-xl font-bold tracking-tight text-[#ea580c]">
               ONIKS365
             </div>
