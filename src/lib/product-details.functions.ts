@@ -228,16 +228,21 @@ Your output directly populates the ONIKS365 Digital Showroom products table.`;
     // 6. EXPLICIT DATABASE MAPPING & PERSISTENCE
     const productPatch: Record<string, any> = {};
 
-    // Decoupled Descriptions: Product Description and SEO Description remain strictly independent
+    // Decoupled Descriptions: Product Description, Short Description, and SEO Description remain strictly independent
     const productDesc = json.product_description || json.generated_description || json.description || "";
     if (productDesc) {
       productPatch.generated_description = productDesc;
-      productPatch.short_description = productDesc;
+      // Protect manual short_description; only set if empty
+      if (!product.short_description || product.short_description.trim() === "") {
+        const shortDescCandidate = json.short_description || (productDesc.length > 180 ? `${productDesc.slice(0, 177).trim()}…` : productDesc);
+        productPatch.short_description = shortDescCandidate;
+      }
     }
 
     const seoDesc = json.seo_description || json.meta_description || "";
     if (seoDesc && !product.seo_description_manual) {
-      productPatch.seo_description = seoDesc;
+      // Guarantee seo_description is concise and distinct from short_description
+      productPatch.seo_description = seoDesc.length > 165 ? `${seoDesc.slice(0, 162).trim()}…` : seoDesc;
     }
 
     // SEO Title & Canonical Slug Guarantee
@@ -246,10 +251,15 @@ Your output directly populates the ONIKS365 Digital Showroom products table.`;
       productPatch.seo_title = seoTitle;
     }
 
+    // Canonical Slug Guarantee: Preserve existing slug to avoid breaking external links if already set
     const rawSlugCandidate = json.slug || json.canonical_slug;
-    const canonicalSlug = slugify(rawSlugCandidate) || slugify(product.name) || `product-${product.code || productId.slice(0, 8)}`;
+    const generatedSlug = slugify(rawSlugCandidate) || slugify(product.name) || `product-${product.code || productId.slice(0, 8)}`;
+    const canonicalSlug = (product.slug && product.slug.trim()) ? product.slug : generatedSlug;
+
     productPatch.canonical_slug = canonicalSlug;
-    productPatch.slug = canonicalSlug;
+    if (!product.slug || product.slug.trim() === "") {
+      productPatch.slug = canonicalSlug;
+    }
 
     // Extract Structured Arrays
     let rawAlt = json.alternative_names || json.alternative_terms || json.alternative_product_names || json.name_variations || json.search_aliases;

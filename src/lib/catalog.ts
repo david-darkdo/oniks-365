@@ -34,13 +34,36 @@ export type TaxonomyNode = { id: string; name: string; slug: string };
 const PRODUCT_FIELDS =
   "id,slug,name,code,price,original_price,pricing_unit,differentiator_type,differentiator_note,brand,image_url,generated_studio_image,generated_installed_image,short_description,family_id,type_id,category_id,subcategory_id,color,material,finish,app_keywords,featured_feed,featured_homepage,created_at";
 
-/** Customer-facing visibility: completed processing, published, not hidden, not soft-deleted. */
+export type FeedHeroItem = {
+  id: string;
+  title: string | null;
+  media_type: "image" | "video";
+  media_url: string;
+  thumbnail_url: string | null;
+  order_index: number;
+  is_active: boolean;
+  duration_seconds: number;
+};
+
+/** Customer-facing visibility: published, not hidden, not soft-deleted. AI processing state does not block visibility. */
 function applyPublicFilters<T extends { eq: Function; is: Function }>(q: T): T {
   return (q as any)
-    .eq("processing_state", "completed")
     .eq("status", "published")
     .eq("hidden", false)
     .is("deleted_at", null);
+}
+
+export async function fetchFeedHeroMedia(): Promise<FeedHeroItem[]> {
+  const { data, error } = await supabase
+    .from("feed_hero_media" as any)
+    .select("*")
+    .eq("is_active", true)
+    .order("order_index", { ascending: true });
+  if (error) {
+    console.error("Failed to fetch feed hero media:", error);
+    return [];
+  }
+  return (data as unknown as FeedHeroItem[]) ?? [];
 }
 
 export async function fetchTaxonomy() {

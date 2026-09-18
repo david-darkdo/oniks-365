@@ -25,7 +25,10 @@ import {
   Award,
   Shield,
   HelpCircle,
-  FileCheck
+  FileCheck,
+  Image as ImageIcon,
+  Film,
+  Sparkles
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/business")({
@@ -83,7 +86,19 @@ type TrustFeature = {
   created_at: string;
 };
 
-type BusinessTab = "pipeline" | "collections" | "experience" | "home_videos";
+type FeedHeroRow = {
+  id: string;
+  title: string | null;
+  media_type: "image" | "video";
+  media_url: string;
+  thumbnail_url: string | null;
+  order_index: number;
+  is_active: boolean;
+  duration_seconds: number;
+  created_at: string;
+};
+
+type BusinessTab = "pipeline" | "collections" | "experience" | "home_videos" | "feed_hero";
 
 function BusinessOpsPage() {
   const { isAdmin, loading, user } = useAuth();
@@ -110,6 +125,14 @@ function BusinessOpsPage() {
   const [showcaseVideos, setShowcaseVideos] = useState<any[]>([]);
   const [newShowcaseUrl, setNewShowcaseUrl] = useState("");
   const [newShowcaseTitle, setNewShowcaseTitle] = useState("");
+
+  // Feed Hero Media states
+  const [feedHeroMedia, setFeedHeroMedia] = useState<FeedHeroRow[]>([]);
+  const [newFeedHeroTitle, setNewFeedHeroTitle] = useState("");
+  const [newFeedHeroType, setNewFeedHeroType] = useState<"image" | "video">("image");
+  const [newFeedHeroUrl, setNewFeedHeroUrl] = useState("");
+  const [newFeedHeroDuration, setNewFeedHeroDuration] = useState(10);
+
   const [busy, setBusy] = useState(false);
 
   // Audit logger helper
@@ -138,7 +161,8 @@ function BusinessOpsPage() {
         { data: profs },
         { data: vids },
         { data: trs },
-        { data: scVids }
+        { data: scVids },
+        { data: fHero }
       ] = await Promise.all([
         supabase.from("whatsapp_inquiries").select("*").order("created_at", { ascending: false }),
         supabase.from("collections").select("*").order("created_at", { ascending: false }),
@@ -146,7 +170,8 @@ function BusinessOpsPage() {
         supabase.from("profiles").select("auth_id, email, full_name"),
         supabase.from("hero_videos" as any).select("*").order("order_index", { ascending: true }),
         supabase.from("trust_features" as any).select("*").order("order_index", { ascending: true }),
-        supabase.from("showcase_videos" as any).select("*").order("order_index", { ascending: true })
+        supabase.from("showcase_videos" as any).select("*").order("order_index", { ascending: true }),
+        supabase.from("feed_hero_media" as any).select("*").order("order_index", { ascending: true })
       ]);
 
       const counts = new Map<string, number>();
@@ -171,6 +196,7 @@ function BusinessOpsPage() {
       setVideos((vids ?? []) as any);
       setTrusts((trs ?? []) as any);
       setShowcaseVideos((scVids ?? []) as any);
+      setFeedHeroMedia((fHero ?? []) as any);
       setLoaded(true);
     } catch (err: any) {
       toast.error((err as any).message);
@@ -453,6 +479,78 @@ function BusinessOpsPage() {
     }
   };
 
+  // FEED HERO MEDIA MANAGER
+  const addFeedHeroMedia = async () => {
+    if (!newFeedHeroUrl.trim()) return toast.error("Please upload or provide a media URL");
+    setBusy(true);
+    try {
+      const nextIndex = feedHeroMedia.length;
+      const { error } = await supabase.from("feed_hero_media" as any).insert({
+        media_url: newFeedHeroUrl.trim(),
+        media_type: newFeedHeroType,
+        title: newFeedHeroTitle.trim() || null,
+        duration_seconds: Number(newFeedHeroDuration) || 10,
+        order_index: nextIndex,
+        is_active: true
+      });
+      if (error) throw error;
+      setNewFeedHeroUrl("");
+      setNewFeedHeroTitle("");
+      toast.success("Feed hero media slide added successfully!");
+      await logAuditAction("add_feed_hero_media", { url: newFeedHeroUrl.trim(), type: newFeedHeroType, order_index: nextIndex });
+      loadAll();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteFeedHeroMedia = async (id: string) => {
+    if (!confirm("Delete this feed hero slide? This will remove it from the catalog feed carousel.")) return;
+    try {
+      const { error } = await supabase.from("feed_hero_media" as any).delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Feed hero slide removed");
+      await logAuditAction("delete_feed_hero_media", { id });
+      loadAll();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const toggleFeedHeroMedia = async (id: string, current: boolean) => {
+    try {
+      const { error } = await supabase.from("feed_hero_media" as any).update({ is_active: !current }).eq("id", id);
+      if (error) throw error;
+      toast.success("Feed hero slide status updated");
+      await logAuditAction("toggle_feed_hero_media", { id, is_active: !current });
+      loadAll();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
+  const reorderFeedHeroMedia = async (item: any, direction: "up" | "down") => {
+    const idx = feedHeroMedia.findIndex(v => v.id === item.id);
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === feedHeroMedia.length - 1) return;
+
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    const target = feedHeroMedia[swapIdx];
+
+    try {
+      await Promise.all([
+        supabase.from("feed_hero_media" as any).update({ order_index: target.order_index }).eq("id", item.id),
+        supabase.from("feed_hero_media" as any).update({ order_index: item.order_index }).eq("id", target.id)
+      ]);
+      toast.success("Reordered feed hero slides");
+      loadAll();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   if (loading || !loaded) {
     return <div className="container-app py-10 text-sm text-muted-foreground">Loading business operations…</div>;
   }
@@ -501,6 +599,14 @@ function BusinessOpsPage() {
             }`}
           >
             Home Videos
+          </button>
+          <button
+            onClick={() => setActiveTab("feed_hero")}
+            className={`rounded-md px-3.5 py-1.5 text-xs font-semibold capitalize transition ${
+              activeTab === "feed_hero" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Feed Hero Media
           </button>
         </div>
       </div>
@@ -882,10 +988,23 @@ function BusinessOpsPage() {
                     }}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   />
-                  <Tv className="mx-auto h-8 w-8 text-muted-foreground/60 mb-2" />
-                  <p className="text-xs font-bold text-foreground">Drag and drop video file here, or <span className="text-amber-600 underline cursor-pointer">browse local files</span></p>
-                  <p className="text-[10px] text-muted-foreground mt-1">Supports MP4, WebM, MOV & high-definition video files (large files supported directly).</p>
+                  <div className="space-y-1 pointer-events-none">
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                      <Tv className="h-5 w-5 text-amber-500" />
+                    </div>
+                    <p className="text-xs font-semibold text-foreground">Click or drag & drop to upload video</p>
+                    <p className="text-[10px] text-muted-foreground">MP4, WebM up to 100MB</p>
+                  </div>
                 </div>
+
+                {newShowcaseUrl && (
+                  <div className="rounded-lg border border-border p-2 bg-background space-y-1">
+                    <p className="text-[10px] font-mono text-muted-foreground truncate">Selected: {newShowcaseUrl}</p>
+                    <div className="aspect-video rounded-md overflow-hidden bg-neutral-900 flex items-center justify-center">
+                      <video src={newShowcaseUrl} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -918,6 +1037,196 @@ function BusinessOpsPage() {
               {showcaseVideos.length === 0 && (
                 <div className="text-center py-12 border border-dashed border-border rounded-xl text-xs text-muted-foreground italic">
                   No custom showcase videos added yet. Default architectural showcase videos will play on the homepage slider.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FEED HERO MEDIA TAB */}
+      {activeTab === "feed_hero" && (
+        <div className="rounded-xl border border-border bg-card p-6 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-4 gap-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-amber-500" />
+              <div>
+                <h2 className="font-display text-lg font-bold text-foreground">Catalog Feed Hero Media Manager</h2>
+                <p className="text-xs text-muted-foreground">Manage full-width images and videos featured in the discovery carousel at the top of the showroom catalog feed.</p>
+              </div>
+            </div>
+            <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-500 shrink-0 self-start sm:self-center">
+              {feedHeroMedia.filter((v) => v.is_active).length} Active Slide{feedHeroMedia.filter((v) => v.is_active).length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Upload / Add Form Box */}
+            <div className="space-y-4 rounded-xl border border-border/80 bg-surface p-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Add New Feed Hero Slide</h3>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Slide Title / Badge (Optional)</label>
+                  <input
+                    value={newFeedHeroTitle}
+                    onChange={(e) => setNewFeedHeroTitle(e.target.value)}
+                    placeholder="e.g. Luxury Architectural Sanitaryware & Kitchen Solutions"
+                    className="w-full rounded-lg border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-amber-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Media Type</label>
+                    <div className="flex rounded-lg border border-border bg-background p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setNewFeedHeroType("image")}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-md transition ${
+                          newFeedHeroType === "image" ? "bg-amber-500 text-white shadow-xs" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" /> Image
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setNewFeedHeroType("video")}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-semibold rounded-md transition ${
+                          newFeedHeroType === "video" ? "bg-amber-500 text-white shadow-xs" : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        <Film className="w-3.5 h-3.5" /> Video
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Display Duration (Seconds)</label>
+                    <input
+                      type="number"
+                      min={3}
+                      max={60}
+                      value={newFeedHeroDuration}
+                      onChange={(e) => setNewFeedHeroDuration(Math.max(3, parseInt(e.target.value, 10) || 10))}
+                      className="w-full rounded-lg border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-muted-foreground mb-1">Direct Media URL</label>
+                  <div className="flex gap-2">
+                    <input
+                      value={newFeedHeroUrl}
+                      onChange={(e) => setNewFeedHeroUrl(e.target.value)}
+                      placeholder={newFeedHeroType === "image" ? "Paste image URL (.webp / .jpg / .png)" : "Paste video URL (.mp4 / .webm)"}
+                      className="flex-1 rounded-lg border border-border bg-background px-3.5 py-2 text-xs outline-none focus:border-amber-500"
+                    />
+                    <button
+                      disabled={busy || !newFeedHeroUrl.trim()}
+                      onClick={addFeedHeroMedia}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-4 py-2 text-xs font-bold text-white hover:bg-amber-700 disabled:opacity-50 transition shadow-xs shrink-0"
+                    >
+                      <Plus className="h-4 w-4" /> Save Slide
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative border-2 border-dashed border-border rounded-xl p-5 text-center bg-background/80 hover:bg-background transition">
+                  <input
+                    type="file"
+                    accept={newFeedHeroType === "image" ? "image/jpeg,image/png,image/webp,image/avif,image/*" : "video/mp4,video/webm,video/quicktime,video/*"}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+
+                      const uploadToast = toast.loading(`Uploading hero ${newFeedHeroType} (0%)...`, { duration: 0 });
+                      try {
+                        const url = await uploadLargeMediaFileClient({
+                          file,
+                          folder: "feed-hero",
+                          resourceType: newFeedHeroType === "video" ? "video" : "image",
+                          getSignatureFn,
+                          onProgress: (pct) => {
+                            toast.loading(`Uploading hero ${newFeedHeroType} (${pct}%)...`, { id: uploadToast });
+                          },
+                        });
+                        setNewFeedHeroUrl(url);
+                        toast.dismiss(uploadToast);
+                        toast.success(`${newFeedHeroType === "image" ? "Image" : "Video"} uploaded! Click 'Save Slide' to publish.`);
+                      } catch (err: any) {
+                        toast.dismiss(uploadToast);
+                        toast.error(err.message || "Failed to upload media file");
+                      }
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <div className="space-y-1 pointer-events-none">
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+                      {newFeedHeroType === "image" ? <ImageIcon className="h-5 w-5 text-amber-500" /> : <Film className="h-5 w-5 text-amber-500" />}
+                    </div>
+                    <p className="text-xs font-semibold text-foreground">Click or drag & drop to upload hero {newFeedHeroType}</p>
+                    <p className="text-[10px] text-muted-foreground">{newFeedHeroType === "image" ? "WebP, JPG, PNG up to 10MB" : "MP4, WebM high-definition video"}</p>
+                  </div>
+                </div>
+
+                {newFeedHeroUrl && (
+                  <div className="rounded-lg border border-border p-2 bg-background space-y-1">
+                    <p className="text-[10px] font-mono text-muted-foreground truncate">Selected: {newFeedHeroUrl}</p>
+                    <div className="aspect-[21/9] rounded-md overflow-hidden bg-neutral-900 flex items-center justify-center">
+                      {newFeedHeroType === "image" ? (
+                        <img src={newFeedHeroUrl} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <video src={newFeedHeroUrl} autoPlay muted loop playsInline className="w-full h-full object-cover" />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Feed Hero Slides List */}
+            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Active Hero Slides ({feedHeroMedia.length})</h3>
+
+              {feedHeroMedia.map((slide, idx) => (
+                <div key={slide.id} className="rounded-xl border border-border bg-background p-3.5 flex gap-3 items-center justify-between shadow-2xs group">
+                  <div className="w-20 h-12 rounded-lg overflow-hidden bg-neutral-900 shrink-0 border border-border">
+                    {slide.media_type === "image" ? (
+                      <img src={slide.media_url} alt={slide.title || "Slide"} className="w-full h-full object-cover" />
+                    ) : (
+                      <video src={slide.media_url} muted className="w-full h-full object-cover" />
+                    )}
+                  </div>
+
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-xs text-foreground">Slide #{idx + 1}</span>
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-[9px] font-semibold uppercase text-muted-foreground">
+                        {slide.media_type}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono">{slide.duration_seconds}s</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-extrabold uppercase ${slide.is_active ? "bg-green-500/10 text-green-600" : "bg-muted text-muted-foreground"}`}>
+                        {slide.is_active ? "Active" : "Disabled"}
+                      </span>
+                    </div>
+                    {slide.title && <p className="text-xs font-medium text-foreground truncate">{slide.title}</p>}
+                    <p className="text-[10px] font-mono text-muted-foreground truncate">{slide.media_url}</p>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => reorderFeedHeroMedia(slide, "up")} disabled={idx === 0} className="p-1.5 rounded border border-border hover:bg-muted disabled:opacity-30" title="Move Up"><ArrowUp className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => reorderFeedHeroMedia(slide, "down")} disabled={idx === feedHeroMedia.length - 1} className="p-1.5 rounded border border-border hover:bg-muted disabled:opacity-30" title="Move Down"><ArrowDown className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => toggleFeedHeroMedia(slide.id, slide.is_active)} className="rounded border border-border px-2.5 py-1 text-[10px] font-bold hover:bg-muted transition">Toggle</button>
+                    <button onClick={() => deleteFeedHeroMedia(slide.id)} className="p-1.5 rounded text-destructive hover:bg-destructive/10 transition" title="Delete"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                </div>
+              ))}
+
+              {feedHeroMedia.length === 0 && (
+                <div className="text-center py-12 border border-dashed border-border rounded-xl text-xs text-muted-foreground italic">
+                  No custom feed hero media added yet. Add slides above to enrich the top of the showroom feed.
                 </div>
               )}
             </div>

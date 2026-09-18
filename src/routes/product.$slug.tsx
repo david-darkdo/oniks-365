@@ -175,8 +175,18 @@ function ProductPage() {
   }, [product.generated_installed_image, installationAssets]);
 
   const [activeInstallationIndex, setActiveInstallationIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   const [lightboxImg, setLightboxImg] = useState<string | null>(null);
   const [lightboxScale, setLightboxScale] = useState(1);
+
+  // Synchronized smooth auto-cycle for installation gallery
+  useEffect(() => {
+    if (installationImages.length <= 1 || isPaused) return;
+    const interval = setInterval(() => {
+      setActiveInstallationIndex((prev) => (prev + 1) % installationImages.length);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [installationImages.length, isPaused]);
 
   const activeInstalledImage = installationImages[activeInstallationIndex] || installationImages[0] || null;
 
@@ -318,7 +328,7 @@ function ProductPage() {
       {faqSchema && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
       )}
-      {product.structured_data && (
+      {product.structured_data && (product.structured_data as any)["@type"] !== "Product" && (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(product.structured_data) }} />
       )}
 
@@ -360,15 +370,20 @@ function ProductPage() {
           </div>
 
           {/* SWITCHABLE INSTALLATION IMAGES GALLERY (Right) */}
-          <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm flex flex-col aspect-square">
-            <div className="flex-1 overflow-hidden flex items-center justify-center bg-muted/10">
+          <div
+            className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm flex flex-col aspect-square"
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+          >
+            <div className="flex-1 overflow-hidden flex items-center justify-center bg-muted/10 relative">
               {activeInstalledImage ? (
                 <img
+                  key={activeInstalledImage}
                   src={activeInstalledImage}
                   alt={`${product.name} — Installation View ${activeInstallationIndex + 1}`}
                   loading="lazy"
                   onClick={() => setLightboxImg(activeInstalledImage)}
-                  className="w-full h-full object-cover cursor-zoom-in hover:scale-[1.01] transition-transform duration-300"
+                  className="w-full h-full object-cover cursor-zoom-in hover:scale-[1.01] transition-all duration-300"
                 />
               ) : (
                 <div className="text-xs text-muted-foreground italic flex h-full items-center justify-center p-6 text-center">
@@ -388,23 +403,32 @@ function ProductPage() {
                 )}
               </div>
 
-              {/* Installation Image Switching Buttons */}
+              {/* Compact Visual Photograph Thumbnail Cards */}
               {installationImages.length > 1 && (
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-                  {installationImages.map((imgUrl, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setActiveInstallationIndex(idx)}
-                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md border transition flex items-center gap-1.5 shrink-0 ${
-                        activeInstallationIndex === idx
-                          ? "bg-amber-500/10 border-amber-500 text-amber-600 shadow-2xs"
-                          : "bg-muted/40 border-border text-muted-foreground hover:border-amber-500/40 hover:text-foreground"
-                      }`}
-                    >
-                      <img src={imgUrl} alt={`Inst ${idx + 1}`} className="w-3.5 h-3.5 object-cover rounded" />
-                      <span>Installation {idx + 1}</span>
-                    </button>
-                  ))}
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none py-0.5">
+                  {installationImages.map((imgUrl, idx) => {
+                    const isActive = activeInstallationIndex === idx;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActiveInstallationIndex(idx)}
+                        aria-label={`View installation photograph ${idx + 1}`}
+                        className={`relative w-14 h-14 sm:w-16 sm:h-16 rounded-lg overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                          isActive
+                            ? "border-amber-500 ring-2 ring-amber-500/40 scale-105 shadow-md"
+                            : "border-border/80 hover:border-amber-500/50 opacity-70 hover:opacity-100"
+                        }`}
+                      >
+                        <img
+                          src={imgUrl}
+                          alt={`Installation preview ${idx + 1}`}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -3,8 +3,9 @@ import { useInfiniteQuery, useSuspenseQuery, queryOptions, infiniteQueryOptions 
 import { useEffect, useRef } from "react";
 import { AppShell } from "@/components/AppShell";
 import { ProductCard, ProductCardSkeleton } from "@/components/ProductCard";
-import { fetchFeedProductsPaginated, fetchTaxonomy, type FeedFilters, type CursorParam } from "@/lib/catalog";
-import { Sparkles, ChevronDown, Loader2 } from "lucide-react";
+import { FeedHeroMedia } from "@/components/FeedHeroMedia";
+import { fetchFeedProductsPaginated, fetchTaxonomy, fetchFeedHeroMedia, type FeedFilters, type CursorParam } from "@/lib/catalog";
+import { ChevronDown, Loader2 } from "lucide-react";
 
 type FeedSearch = {
   type?: string;
@@ -26,6 +27,12 @@ const taxonomyQuery = queryOptions({
   staleTime: 5 * 60_000,
 });
 
+const feedHeroQuery = queryOptions({
+  queryKey: ["feed_hero_media"],
+  queryFn: fetchFeedHeroMedia,
+  staleTime: 5 * 60_000,
+});
+
 const feedInfiniteQuery = (f: FeedFilters) =>
   infiniteQueryOptions({
     queryKey: ["feed_infinite", f],
@@ -39,6 +46,7 @@ export const Route = createFileRoute("/")({
   loaderDeps: ({ search }) => search,
   loader: ({ context, deps }) => {
     context.queryClient.ensureQueryData(taxonomyQuery);
+    context.queryClient.ensureQueryData(feedHeroQuery);
     context.queryClient.ensureInfiniteQueryData(feedInfiniteQuery(deps));
   },
   head: () => ({
@@ -64,6 +72,7 @@ function FeedPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const { data: tax } = useSuspenseQuery(taxonomyQuery);
+  const { data: feedHeroItems = [] } = useSuspenseQuery(feedHeroQuery);
   const feedQuery = useInfiniteQuery(feedInfiniteQuery(search));
 
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -113,7 +122,13 @@ function FeedPage() {
 
   return (
     <AppShell>
-      <div className="container-app pt-4 pb-12 space-y-4">
+      <div className="container-app pt-2 sm:pt-4 pb-12 space-y-4">
+        {/* Full-Width Visual Feed Hero Media Carousel */}
+        {feedHeroItems.length > 0 && (
+          <FeedHeroMedia items={feedHeroItems} />
+        )}
+
+        {/* Product Attributes / Taxonomy Filters immediately below hero */}
         {/* Type row */}
         <FilterRow>
           <Pill active={!search.type} onClick={() => setType(undefined)}>
@@ -161,28 +176,6 @@ function FeedPage() {
             ))}
           </FilterRow>
         )}
-
-        <div className="mt-5 flex items-end justify-between border-b border-border pb-3">
-          <div>
-            <h1 className="font-display text-xs uppercase tracking-[0.18em] text-accent">
-              {activeSub
-                ? `${activeCategory?.name} · ${activeSub.name}`
-                : activeCategory
-                  ? activeCategory.name
-                  : activeType
-                    ? activeType.name
-                    : "Curated Showroom Feed"}
-            </h1>
-            <p className="mt-1 font-display text-2xl font-semibold tracking-tight text-foreground">
-              Discover the catalogue
-            </p>
-          </div>
-          {totalCount > 0 && (
-            <span className="text-xs font-mono text-muted-foreground">
-              Showing {allProducts.length} of {totalCount} products
-            </span>
-          )}
-        </div>
 
         {/* Product Grid */}
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
