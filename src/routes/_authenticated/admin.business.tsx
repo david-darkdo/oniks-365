@@ -531,6 +531,23 @@ function BusinessOpsPage() {
     }
   };
 
+  const updateFeedHeroMediaTitle = async (id: string, currentTitle: string | null) => {
+    const newTitle = window.prompt("Edit Slide Title / Badge (leave empty to remove):", currentTitle || "");
+    if (newTitle === null) return;
+    try {
+      const { error } = await supabase
+        .from("feed_hero_media" as any)
+        .update({ title: newTitle.trim() || null })
+        .eq("id", id);
+      if (error) throw error;
+      toast.success("Feed hero slide title updated");
+      await logAuditAction("update_feed_hero_media_title", { id, title: newTitle.trim() || null });
+      loadAll();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  };
+
   const reorderFeedHeroMedia = async (item: any, direction: "up" | "down") => {
     const idx = feedHeroMedia.findIndex(v => v.id === item.id);
     if (direction === "up" && idx === 0) return;
@@ -1218,6 +1235,7 @@ function BusinessOpsPage() {
                   <div className="flex items-center gap-1 shrink-0">
                     <button onClick={() => reorderFeedHeroMedia(slide, "up")} disabled={idx === 0} className="p-1.5 rounded border border-border hover:bg-muted disabled:opacity-30" title="Move Up"><ArrowUp className="h-3.5 w-3.5" /></button>
                     <button onClick={() => reorderFeedHeroMedia(slide, "down")} disabled={idx === feedHeroMedia.length - 1} className="p-1.5 rounded border border-border hover:bg-muted disabled:opacity-30" title="Move Down"><ArrowDown className="h-3.5 w-3.5" /></button>
+                    <button onClick={() => updateFeedHeroMediaTitle(slide.id, slide.title)} className="rounded border border-border px-2.5 py-1 text-[10px] font-bold hover:bg-muted transition" title="Edit Slide Title / Badge">Edit Badge</button>
                     <button onClick={() => toggleFeedHeroMedia(slide.id, slide.is_active)} className="rounded border border-border px-2.5 py-1 text-[10px] font-bold hover:bg-muted transition">Toggle</button>
                     <button onClick={() => deleteFeedHeroMedia(slide.id)} className="p-1.5 rounded text-destructive hover:bg-destructive/10 transition" title="Delete"><Trash2 className="h-4 w-4" /></button>
                   </div>

@@ -158,15 +158,6 @@ function CollectionPage() {
     if (!loading) void load();
   }, [user, loading, refreshKey]);
 
-  // Handle autoPush parameter (Automatic WhatsApp trigger after authentication)
-  useEffect(() => {
-    if (search.autoPush && !loading && items.length > 0 && settings?.sales_whatsapp) {
-      const timer = setTimeout(() => {
-        void handlePushToWhatsAppClick();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [search.autoPush, loading, items.length, settings]);
 
   const handleRequirementChange = (productId: string, patch: Partial<ItemRequirements>) => {
     setRequirementsMap((prev) => {
@@ -250,8 +241,17 @@ function CollectionPage() {
   }, [products, favoriteProducts, activeView, requirementsMap]);
 
   const handlePushToWhatsAppClick = async () => {
+    if (!user) {
+      toast("Please sign in or create an account to submit your project quotation.");
+      navigate({
+        to: "/auth",
+        search: { redirectTo: "/collection" },
+      });
+      return;
+    }
+
     const currentPhone = userProfile?.phone_number || user?.phone || user?.user_metadata?.phone;
-    if (!currentPhone && user) {
+    if (!currentPhone) {
       setShowPhoneModal(true);
       return;
     }
@@ -283,9 +283,16 @@ function CollectionPage() {
 
     const activeItems = activeView === "collection" ? products : favoriteProducts;
     let id = collectionId || (user ? getCachedUserCollectionItems(user.id).collection_id : "");
+    if (!id && user) {
+      id = await ensureUserCollection(user.id);
+      setCollectionId(id);
+    }
     const refNum = collectionData?.reference_number || generateCollectionReference(id || undefined);
     const versionStr = collectionData?.version && collectionData.version > 1 ? ` (v${collectionData.version})` : "";
-    const shareUrl = id ? `${window.location.origin}/collection/${id}` : `${window.location.origin}/collection`;
+    const adminQuotationUrl = id ? `https://oniks365.ng/admin/collections/${id}` : `https://oniks365.ng/admin/collections`;
+    const customerCollectionUrl = id ? `https://oniks365.ng/collection/${id}` : `https://oniks365.ng/collection`;
+    const customerName = userProfile?.full_name || user?.user_metadata?.full_name || user?.email || "Valued Client";
+    const projectName = collectionData?.project_name || collectionData?.name || "Showroom Project";
 
     // 1. Construct WhatsApp message synchronously (< 16ms)
     const messageParts = [
@@ -293,11 +300,15 @@ function CollectionPage() {
       "",
       "I would like a quotation for my project.",
       "",
-      `Collection Reference:`,
-      `*${refNum}${versionStr}*`,
+      `*Collection Reference:* ${refNum}${versionStr}`,
+      `*Customer:* ${customerName}`,
+      `*Project:* ${projectName}`,
       "",
-      `Collection Link:`,
-      `${shareUrl}`,
+      `*Admin Quotation Review:*`,
+      `${adminQuotationUrl}`,
+      "",
+      `*Customer Collection:*`,
+      `${customerCollectionUrl}`,
       "",
       `*SELECTED PRODUCTS (${activeItems.length}):*`
     ];

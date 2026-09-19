@@ -253,7 +253,18 @@ Your output directly populates the ONIKS365 Digital Showroom products table.`;
     }
 
     if (json.faq && Array.isArray(json.faq)) {
-      productPatch.faq = json.faq;
+      const normalizedFaq = json.faq
+        .map((item: any) => {
+          if (!item || typeof item !== "object") return null;
+          const q = (item.question || item.q || "").trim();
+          const a = (item.answer || item.a || "").trim();
+          if (!q || !a) return null;
+          return { question: q, answer: a };
+        })
+        .filter(Boolean);
+      if (normalizedFaq.length > 0) {
+        productPatch.faq = normalizedFaq;
+      }
     }
     if (json.structured_data) {
       productPatch.structured_data = json.structured_data;

@@ -113,6 +113,16 @@ export function FeedHeroMedia({ items }: FeedHeroMediaProps) {
                 loading={idx === 0 ? "eager" : "lazy"}
               />
             )}
+            {/* Slide Title / Badge attached directly to this slide */}
+            {item.title && (
+              <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20 pointer-events-none">
+                <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/60 backdrop-blur-md text-white text-xs sm:text-sm font-bold tracking-wide uppercase border border-white/20 shadow-lg animate-in fade-in duration-500">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  {item.title}
+                </span>
+              </div>
+            )}
+
             {/* Subtle bottom shadow vignette strictly for slide indicator contrast */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
           </div>

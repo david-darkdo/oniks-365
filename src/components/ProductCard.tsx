@@ -118,11 +118,6 @@ export function ProductCard({ product }: { product: ProductRow }) {
             <span className="ml-1 text-[10px] font-normal text-muted-foreground">/{product.pricing_unit || "piece"}</span>
           </p>
         </div>
-        {product.differentiator_note && (
-          <span className="inline-block self-start rounded bg-[#C5A059]/15 px-1.5 py-0.5 text-[9px] font-semibold text-[#8C6D23] line-clamp-1">
-            {product.differentiator_note}
-          </span>
-        )}
         <div className="mt-auto flex gap-2 pt-2 border-t border-[#E5E0D8]/60">
           <AddToCollectionButton productId={product.id} compact />
           <Link

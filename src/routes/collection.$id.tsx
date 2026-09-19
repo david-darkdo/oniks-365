@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchProductsByIds, detectProductUnit } from "@/lib/collection";
@@ -57,20 +57,33 @@ export const Route = createFileRoute("/collection/$id")({
 
 function SharedCollection() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   const { data: settings } = useAppSettings();
   const { isAdmin } = useAuth();
   const [collection, setCollection] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
 
+  // Authenticated administrators are automatically resolved to the quotation manager
+  useEffect(() => {
+    if (isAdmin) {
+      navigate({ to: "/admin/collections/$id", params: { id }, replace: true });
+    }
+  }, [isAdmin, id, navigate]);
+
   useEffect(() => {
     const load = async () => {
-      const { data: c } = await supabase.from("collections").select("*").eq("id", id).maybeSingle();
+      // Select ONLY customer-safe fields to ensure internal administrator notes and margins are never exposed
+      const { data: c } = await supabase
+        .from("collections")
+        .select("id, name, project_name, version, is_locked, created_at, submitted_at, user_id")
+        .eq("id", id)
+        .maybeSingle();
       if (c) setCollection(c);
 
       const { data: rawItems } = await supabase
         .from("collection_items")
-        .select("*")
+        .select("id, product_id, quantity, unit, installation_location, delivery_preference, installation_required, project_notes")
         .eq("collection_id", id);
 
       const fetchedItems = rawItems ?? [];

@@ -218,8 +218,10 @@ export async function ensureUserCollection(userId: string): Promise<string> {
   try {
     const { data: existing, error } = await supabase
       .from("collections")
-      .select("id, name, user_id, created_at")
+      .select("id, name, user_id, created_at, is_locked, status")
       .eq("user_id", userId)
+      .eq("is_locked", false)
+      .neq("status", "Submitted")
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -234,7 +236,9 @@ export async function ensureUserCollection(userId: string): Promise<string> {
       .from("collections")
       .insert({
         user_id: userId,
-        name: "Project Workspace"
+        name: "Project Workspace",
+        is_locked: false,
+        status: "Draft"
       })
       .select("id")
       .single();
@@ -458,6 +462,8 @@ export async function lockAndSubmitCollection(collectionId: string, userId?: str
         .from("collections")
         .update({
           status: "Submitted",
+          is_locked: true,
+          submitted_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         } as any)
         .eq("id", collectionId);
@@ -469,7 +475,9 @@ export async function lockAndSubmitCollection(collectionId: string, userId?: str
     try {
       await supabase.from("collections").insert({
         user_id: userId,
-        name: "Project Workspace"
+        name: "Project Workspace",
+        is_locked: false,
+        status: "Draft"
       });
     } catch {}
   }

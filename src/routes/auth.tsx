@@ -6,10 +6,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>): { redirectTo?: string; autoPush?: boolean } => {
+  validateSearch: (search: Record<string, unknown>): { redirectTo?: string } => {
     return {
       redirectTo: search.redirectTo ? String(search.redirectTo) : undefined,
-      autoPush: search.autoPush === "true" || search.autoPush === true ? true : undefined,
     };
   },
   head: () => ({
@@ -28,16 +27,12 @@ function AuthPage() {
   const [fullName, setFullName] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const targetPath = search.autoPush ? `${search.redirectTo || "/collection"}?autoPush=true` : (search.redirectTo || "/collection");
+  const targetPath = search.redirectTo || "/collection";
 
   if (user) {
-    // Already signed in — redirect to destination with autoPush
+    // Already signed in — redirect to destination
     setTimeout(() => {
-      if (search.autoPush) {
-        navigate({ to: "/collection", search: { autoPush: true } });
-      } else {
-        navigate({ to: (search.redirectTo as any) || "/collection" });
-      }
+      navigate({ to: (search.redirectTo as any) || "/collection" });
     }, 0);
   }
 
@@ -58,11 +53,7 @@ function AuthPage() {
         if (data.user) {
           try { await mergeGuestIntoUser(data.user.id); } catch {}
           toast.success("Account created");
-          if (search.autoPush) {
-            navigate({ to: "/collection", search: { autoPush: true } });
-          } else {
-            navigate({ to: (search.redirectTo as any) || "/collection" });
-          }
+          navigate({ to: (search.redirectTo as any) || "/collection" });
         } else {
           toast("Check your email to confirm your account");
         }
@@ -73,11 +64,7 @@ function AuthPage() {
           try { await mergeGuestIntoUser(data.user.id); } catch {}
         }
         toast.success("Welcome back");
-        if (search.autoPush) {
-          navigate({ to: "/collection", search: { autoPush: true } });
-        } else {
-          navigate({ to: (search.redirectTo as any) || "/collection" });
-        }
+        navigate({ to: (search.redirectTo as any) || "/collection" });
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
@@ -88,7 +75,7 @@ function AuthPage() {
 
   const google = async () => {
     setBusy(true);
-    const redirectUrl = `${window.location.origin}/collection?autoPush=true`;
+    const redirectUrl = `${window.location.origin}${targetPath}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

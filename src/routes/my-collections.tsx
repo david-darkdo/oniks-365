@@ -112,7 +112,7 @@ function MyCollectionsHistoryPage() {
         <FileText className="h-10 w-10 text-muted-foreground/40 mx-auto" />
         <h2 className="font-display text-xl font-semibold">Sign in to view Collection History</h2>
         <p className="text-xs text-muted-foreground">Your submitted project quotation requests are saved to your account history as permanent immutable records.</p>
-        <Link to="/auth" search={{ redirectTo: "/my-collections", autoPush: false }} className="inline-block rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+        <Link to="/auth" search={{ redirectTo: "/my-collections" }} className="inline-block rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
           Sign In
         </Link>
       </div>

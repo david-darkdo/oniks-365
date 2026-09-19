@@ -345,10 +345,14 @@ function ProductPage() {
     }
   };
 
-  const faqSchema = product.faq && Array.isArray(product.faq) ? {
+  const faqList = product.faq && Array.isArray(product.faq)
+    ? (product.faq as any[]).filter((f) => (f.question || f.q) && (f.answer || f.a)).slice(0, 2)
+    : [];
+
+  const faqSchema = faqList.length > 0 ? {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "mainEntity": (product.faq as any[]).map((f) => ({
+    "mainEntity": faqList.map((f) => ({
       "@type": "Question",
       "name": f.question || f.q || "",
       "acceptedAnswer": {
