@@ -498,7 +498,7 @@ function ProductPage() {
             <div className="rounded-xl border border-border/80 bg-card p-4 text-xs space-y-3 max-w-prose shadow-sm">
               <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-foreground border-b border-border/40 pb-2">Frequently Asked Questions</h3>
               <div className="space-y-4">
-                {(product.faq as any[]).map((f, i) => (
+                {(product.faq as any[]).slice(0, 2).map((f, i) => (
                   <div key={i} className="space-y-1">
                     <h4 className="font-semibold text-xs text-foreground flex gap-1.5 items-start">
                       <span className="text-primary font-bold">Q:</span>
@@ -528,6 +528,7 @@ function ProductPage() {
               </div>
             )}
             {[
+              ["Size", (product as any).size],
               ["Color", product.color],
               ["Material", product.material],
               ["Finish", product.finish],

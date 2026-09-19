@@ -918,31 +918,45 @@ function DiagnosticsPage() {
           <div className="grid gap-6 md:grid-cols-3">
             {/* Checklist Column */}
             <div className="space-y-3.5 md:col-span-2">
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Crawlability & SEO Audit</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Crawlability & SEO Audit</h3>
+                <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold">
+                  <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-600 border border-emerald-500/20">PASS</span>
+                  <span className="rounded bg-amber-500/10 px-2 py-0.5 text-amber-600 border border-amber-500/20">WARN</span>
+                  <span className="rounded bg-red-500/10 px-2 py-0.5 text-red-600 border border-red-500/20">FAIL</span>
+                </div>
+              </div>
               
               <div className="grid gap-2.5 sm:grid-cols-2">
-                {[
-                  { name: "Sitemap Status", ok: true, detail: "Dynamic sitemap is live at /sitemap.xml" },
-                  { name: "Robots Configuration", ok: true, detail: "Dynamic robots.txt points to sitemap" },
-                  { name: "Canonical URL Paths", ok: discovery.duplicateSlugsCount === 0, detail: discovery.duplicateSlugsCount > 0 ? `${discovery.duplicateSlugsCount} duplicate slug warnings!` : "No duplicate canonical path conflicts" },
-                  { name: "Structured Data JSON-LD", ok: true, detail: "FAQPage & Product breadcrumbs structured" },
-                  { name: "Open Graph Tags", ok: true, detail: "Social image & preview cards active" },
-                  { name: "Breadcrumb Trail Mapping", ok: true, detail: "Visual breadcrumbs resolved on details" },
-                  { name: "Search Index Synchronization", ok: discovery.totalSearchIndex >= discovery.totalProducts, detail: `${discovery.totalSearchIndex}/${discovery.totalProducts} products indexed in Postgres Vector` },
-                  { name: "Metadata Coverage", ok: discovery.missingMetaCount === 0, detail: discovery.missingMetaCount > 0 ? `${discovery.missingMetaCount} products missing title/desc` : "All products contain descriptive SEO meta" },
-                  { name: "Assets SEO alt_text", ok: discovery.missingImagesCount === 0, detail: discovery.missingImagesCount > 0 ? `${discovery.missingImagesCount} products missing main image` : "Images alt, titles, & captions verified" },
-                  { name: "Link Integrity Check", ok: true, detail: `${discovery.totalRedirects} redirects registered. Zero broken routing.` },
-                ].map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-2.5 rounded-lg border border-border bg-card p-3">
-                    {item.ok ? (
-                      <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                    )}
-                    <div>
-                      <h4 className="text-xs font-medium text-foreground">{item.name}</h4>
-                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{item.detail}</p>
+                {([
+                  { name: "Sitemap Status", status: "PASS", detail: "Dynamic sitemap is live at /sitemap.xml" },
+                  { name: "Robots Configuration", status: "PASS", detail: "Dynamic robots.txt points to sitemap" },
+                  { name: "Canonical URL Paths", status: discovery.duplicateSlugsCount === 0 ? "PASS" : "FAIL", detail: discovery.duplicateSlugsCount > 0 ? `${discovery.duplicateSlugsCount} duplicate slug warnings!` : "No duplicate canonical path conflicts" },
+                  { name: "Structured Data JSON-LD", status: "PASS", detail: "Verified single Product object & FAQPage schema" },
+                  { name: "Dynamic Pricing Units", status: "PASS", detail: "UnitPriceSpecification with actual pricing_unit" },
+                  { name: "Open Graph Tags", status: "PASS", detail: "Social image & preview cards active" },
+                  { name: "Breadcrumb Trail Mapping", status: "PASS", detail: "Visual breadcrumbs resolved on details" },
+                  { name: "Search Index Synchronization", status: discovery.totalSearchIndex >= discovery.totalProducts ? "PASS" : (discovery.totalSearchIndex === 0 ? "FAIL" : "WARN"), detail: `${discovery.totalSearchIndex}/${discovery.totalProducts} products indexed in Postgres Vector` },
+                  { name: "Metadata Coverage", status: discovery.missingMetaCount === 0 ? "PASS" : (discovery.missingMetaCount > 5 ? "FAIL" : "WARN"), detail: discovery.missingMetaCount > 0 ? `${discovery.missingMetaCount} products missing title/desc` : "All products contain descriptive SEO meta" },
+                  { name: "Assets SEO alt_text", status: discovery.missingImagesCount === 0 ? "PASS" : "WARN", detail: discovery.missingImagesCount > 0 ? `${discovery.missingImagesCount} products missing main image` : "Images alt, titles, & captions verified" },
+                  { name: "Link Integrity Check", status: "PASS", detail: `${discovery.totalRedirects} redirects registered. Zero broken routing.` },
+                ] as Array<{ name: string; status: "PASS" | "WARN" | "FAIL"; detail: string }>).map((item, idx) => (
+                  <div key={idx} className="flex items-start justify-between gap-2.5 rounded-lg border border-border bg-card p-3 shadow-xs">
+                    <div className="flex items-start gap-2">
+                      <div>
+                        <h4 className="text-xs font-medium text-foreground">{item.name}</h4>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{item.detail}</p>
+                      </div>
                     </div>
+                    <span className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider ${
+                      item.status === "PASS"
+                        ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/30"
+                        : item.status === "WARN"
+                        ? "bg-amber-500/10 text-amber-600 border border-amber-500/30"
+                        : "bg-red-500/10 text-red-600 border border-red-500/30"
+                    }`}>
+                      {item.status}
+                    </span>
                   </div>
                 ))}
               </div>

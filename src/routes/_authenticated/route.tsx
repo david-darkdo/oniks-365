@@ -8,7 +8,7 @@ export const Route = createFileRoute("/_authenticated")({
       const { data, error } = await supabase.auth.getUser();
       // Allow guest users to access the /favorites route
       if ((error || !data.user) && location.pathname !== "/favorites") {
-        throw redirect({ to: "/auth" });
+        throw redirect({ to: "/auth", search: { redirectTo: location.pathname } });
       }
       return { user: data.user || null };
     } catch (err) {
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_authenticated")({
       if (location.pathname === "/favorites") {
         return { user: null };
       }
-      throw redirect({ to: "/auth" });
+      throw redirect({ to: "/auth", search: { redirectTo: location.pathname } });
     }
   },
   component: () => <Outlet />,

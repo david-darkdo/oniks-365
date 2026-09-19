@@ -204,11 +204,11 @@ function CollectionsCrmPage() {
                   </div>
 
                   <div className="mt-2 flex items-center justify-between gap-1 text-[10px]">
-                    <button onClick={() => openWorksheet(r)} className="inline-flex items-center gap-1 text-primary hover:underline font-medium">
-                      <FileText className="h-3 w-3" /> Worksheet
-                    </button>
+                    <Link to="/admin/collections/$id" params={{ id: r.id }} className="inline-flex items-center gap-1 font-bold text-primary hover:underline">
+                      <FileText className="h-3 w-3" /> Resolve Quote
+                    </Link>
                     <Link to="/collection/$id" params={{ id: r.id }} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
-                      <ExternalLink className="h-3 w-3" /> Open
+                      <ExternalLink className="h-3 w-3" /> Customer View
                     </Link>
                   </div>
                 </div>

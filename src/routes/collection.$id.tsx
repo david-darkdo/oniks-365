@@ -6,6 +6,8 @@ import { useAppSettings, waLink } from "@/lib/settings";
 import { MessageCircle, Lock } from "lucide-react";
 import { publicImageUrl } from "@/components/ImageUploader";
 
+import { useAuth } from "@/hooks/use-auth";
+
 export const Route = createFileRoute("/collection/$id")({
   loader: async ({ params }) => {
     let imageUrl = "";
@@ -56,6 +58,7 @@ export const Route = createFileRoute("/collection/$id")({
 function SharedCollection() {
   const { id } = Route.useParams();
   const { data: settings } = useAppSettings();
+  const { isAdmin } = useAuth();
   const [collection, setCollection] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
@@ -104,6 +107,27 @@ function SharedCollection() {
 
   return (
     <div className="container-app py-6">
+      {/* Administrator Resolution Banner */}
+      {isAdmin && (
+        <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3.5 flex flex-wrap items-center justify-between gap-2 shadow-xs">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="rounded bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
+              Administrator View
+            </span>
+            <span className="text-foreground font-medium">
+              You are inspecting this customer inquiry as an authorized administrator.
+            </span>
+          </div>
+          <Link
+            to="/admin/collections/$id"
+            params={{ id }}
+            className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-primary-foreground hover:bg-primary/90 transition shadow-xs"
+          >
+            Open in Quotation Manager →
+          </Link>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">

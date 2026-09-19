@@ -195,19 +195,9 @@ Your output directly populates the ONIKS365 Digital Showroom products table.`;
     }
 
     if (alternativeNames.length === 0) {
-      const lower = (product.name + " " + categoryName + " " + typeName).toLowerCase();
-      if (lower.includes("sink") || lower.includes("bowl")) {
-        alternativeNames = ["Double Bowl Sink", "Two Compartment Sink", "Stainless Kitchen Basin", "Modern Kitchen Sink"];
-      } else if (lower.includes("toilet") || lower.includes("wc") || lower.includes("water closet")) {
-        alternativeNames = ["Water Closet", "Commode", "Wall-Hung Toilet", "Bathroom WC"];
-      } else if (lower.includes("basin") || lower.includes("wash")) {
-        alternativeNames = ["Wash Hand Basin", "Wash Sink", "Vanity Basin", "Countertop Basin"];
-      } else if (lower.includes("mixer") || lower.includes("valve") || lower.includes("tap") || lower.includes("faucet")) {
-        alternativeNames = ["Shower Valve", "Thermostatic Tap", "Concealed Mixer", "Bathroom Faucet"];
-      } else if (lower.includes("tile") || lower.includes("porcelain") || lower.includes("marble")) {
-        alternativeNames = ["Floor Tile", "Wall Tile", "Porcelain Tile", "Architectural Tile"];
-      } else if (product.name) {
-        alternativeNames = [product.name, `${typeName} ${categoryName}`.trim()].filter(Boolean);
+      const existingDoc = (product.master_document && typeof product.master_document === "object") ? product.master_document : {};
+      if (Array.isArray((existingDoc as any).alternative_names) && (existingDoc as any).alternative_names.length > 0) {
+        alternativeNames = (existingDoc as any).alternative_names.map((s: any) => String(s).trim()).filter(Boolean);
       }
     }
 
@@ -222,7 +212,7 @@ Your output directly populates the ONIKS365 Digital Showroom products table.`;
     const googleLocalSearchTerms = Array.isArray(json.google_local_search_terms) ? json.google_local_search_terms.filter(Boolean) : [];
     const locationKeywords = Array.isArray(json.location_keywords) && json.location_keywords.length > 0 
       ? json.location_keywords.filter(Boolean)
-      : ["Abuja", "Lagos", "Nigeria", "Dei-Dei Building Materials Market"];
+      : [];
     const showroomSearchIndex = Array.isArray(json.showroom_search_index) ? json.showroom_search_index.filter(Boolean) : [];
     const seoKeywords = Array.isArray(json.seo_keywords) ? json.seo_keywords.filter(Boolean) : [];
 

@@ -185,35 +185,25 @@ function RebuiltEditProductPage() {
   // SAVE HANDLER
   const save = async () => {
     setSaving(true);
-    const productDesc = p.short_description || p.generated_description || null;
-    const seoDesc = p.seo_description || null;
-    const finalCanonicalSlug = slugify(p.canonical_slug || p.slug) || slugify(p.name) || `product-${p.code || id.slice(0, 8)}`;
-    let currentMasterDoc = p.master_document || {};
-    if (!currentMasterDoc.alternative_names || currentMasterDoc.alternative_names.length === 0) {
-      const lower = (p.name || "").toLowerCase();
-      let altFallback: string[] = [];
-      if (lower.includes("sink") || lower.includes("bowl")) {
-        altFallback = ["Double Bowl Sink", "Two Compartment Sink", "Stainless Kitchen Basin", "Modern Kitchen Sink"];
-      } else if (lower.includes("toilet") || lower.includes("wc")) {
-        altFallback = ["Water Closet", "Commode", "Wall-Hung Toilet", "Bathroom WC"];
-      } else if (lower.includes("basin") || lower.includes("wash")) {
-        altFallback = ["Wash Hand Basin", "Wash Sink", "Vanity Basin", "Countertop Basin"];
-      } else if (lower.includes("mixer") || lower.includes("valve") || lower.includes("tap")) {
-        altFallback = ["Shower Valve", "Thermostatic Tap", "Concealed Mixer", "Bathroom Faucet"];
-      } else if (lower.includes("tile") || lower.includes("porcelain")) {
-        altFallback = ["Floor Tile", "Wall Tile", "Porcelain Tile"];
-      } else if (p.name) {
-        altFallback = [p.name];
-      }
-      currentMasterDoc = { ...currentMasterDoc, alternative_names: altFallback };
+    const shortDesc = p.short_description ? p.short_description.trim() : null;
+    const generatedDesc = p.generated_description || null;
+    const seoDesc = p.seo_description ? p.seo_description.trim() : null;
+    const finalCanonicalSlug = slugify(p.canonical_slug) || slugify(p.name) || p.slug || `product-${p.code || id.slice(0, 8)}`;
+    // Preserve existing slug to guarantee URL stability unless explicitly changed
+    const finalSlug = (p.slug && p.slug.trim()) ? p.slug.trim() : finalCanonicalSlug;
+
+    let currentMasterDoc = (p.master_document && typeof p.master_document === "object") ? { ...p.master_document } : {};
+    if (!Array.isArray(currentMasterDoc.alternative_names) || currentMasterDoc.alternative_names.length === 0) {
+      const aiAlts = Array.isArray(p.ai_understanding?.alternative_names) ? p.ai_understanding.alternative_names : [];
+      currentMasterDoc.alternative_names = aiAlts;
     }
 
     const payload = {
       ...p,
       canonical_slug: finalCanonicalSlug,
-      slug: finalCanonicalSlug,
-      short_description: productDesc,
-      generated_description: productDesc,
+      slug: finalSlug,
+      short_description: shortDesc,
+      generated_description: generatedDesc,
       seo_description: seoDesc,
       master_document: currentMasterDoc,
       ai_understanding: currentMasterDoc,
@@ -673,7 +663,7 @@ function RebuiltEditProductPage() {
           <div className="flex items-center gap-2">
             <Globe className="h-4 w-4 text-primary" />
             <h2 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Section 5 — Google SEO & Metadata</h2>
-            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded font-mono">Product Desc == SEO Desc</span>
+            <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded font-mono">SERP Snippet & Search Tags</span>
           </div>
           {showSeoSection ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
         </button>
