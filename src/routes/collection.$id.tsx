@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchProductsByIds, detectProductUnit } from "@/lib/collection";
+import { fetchProductsByIds, detectProductUnit, getUserCollectionHistory } from "@/lib/collection";
 import { useAppSettings, waLink } from "@/lib/settings";
-import { MessageCircle, Lock } from "lucide-react";
+import { MessageCircle, Lock, ArrowLeft, Plus, History, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { publicImageUrl } from "@/components/ImageUploader";
 
 import { useAuth } from "@/hooks/use-auth";
@@ -34,20 +34,20 @@ export const Route = createFileRoute("/collection/$id")({
     return { imageUrl };
   },
   head: ({ loaderData }) => {
-    const title = "Shared Project Collection — ONIKS365";
-    const desc = "Check out this curated kitchen & bathroom solutions project quotation request on ONIKS365.";
+    const title = "Project Collection History — ONIKS365";
+    const desc = "Review your submitted kitchen & bathroom quotation request on ONIKS365.";
     const img = (loaderData as any)?.imageUrl || "https://oniks365.ng/logo.png";
     return {
       meta: [
         { title: title },
         { name: "description", content: desc },
         { property: "og:type", content: "website" },
-        { property: "og:title", content: title },
-        { property: "og:description", content: desc },
+        { property: "og:title", title },
+        { property: "og:description", desc },
         { property: "og:image", content: img },
         { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:title", content: title },
-        { name: "twitter:description", content: desc },
+        { name: "twitter:title", title },
+        { name: "twitter:description", desc },
         { name: "twitter:image", content: img }
       ]
     };
@@ -59,10 +59,12 @@ function SharedCollection() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const { data: settings } = useAppSettings();
-  const { isAdmin } = useAuth();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [collection, setCollection] = useState<any>(null);
   const [items, setItems] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [otherCollections, setOtherCollections] = useState<any[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   // Authenticated administrators are automatically resolved to the quotation manager
   useEffect(() => {
@@ -71,12 +73,19 @@ function SharedCollection() {
     }
   }, [isAdmin, id, navigate]);
 
+  // If unauthenticated, redirect to auth preserving the exact destination
+  useEffect(() => {
+    if (!authLoading && !user && !isAdmin) {
+      navigate({ to: "/auth", search: { redirectTo: `/collection/${id}` } });
+    }
+  }, [authLoading, user, isAdmin, id, navigate]);
+
   useEffect(() => {
     const load = async () => {
       // Select ONLY customer-safe fields to ensure internal administrator notes and margins are never exposed
       const { data: c } = await supabase
         .from("collections")
-        .select("id, name, project_name, version, is_locked, created_at, submitted_at, user_id")
+        .select("id, name, project_name, reference_number, version, is_locked, status, created_at, submitted_at, user_id")
         .eq("id", id)
         .maybeSingle();
       if (c) setCollection(c);
@@ -91,9 +100,41 @@ function SharedCollection() {
 
       const fetchedProds = await fetchProductsByIds(fetchedItems.map((i) => i.product_id));
       setProducts(fetchedProds);
+
+      // If owned by user, fetch their other collections for history reference
+      if (user) {
+        const hist = await getUserCollectionHistory(user.id);
+        setOtherCollections(hist.filter((h: any) => h.id !== id));
+      }
+      setLoaded(true);
     };
-    load();
-  }, [id]);
+    if (user || isAdmin) {
+      load();
+    }
+  }, [id, user, isAdmin]);
+
+  if (authLoading || (!loaded && (user || isAdmin))) {
+    return <div className="container-app py-10 text-sm text-muted-foreground">Loading collection workspace…</div>;
+  }
+
+  // Access Control: Customer can only see their own collections
+  if (user && collection && collection.user_id && collection.user_id !== user.id && !isAdmin) {
+    return (
+      <div className="container-app py-12 max-w-md text-center space-y-4">
+        <ShieldAlert className="h-10 w-10 text-amber-500 mx-auto" />
+        <h2 className="font-display text-xl font-bold">Access Restricted</h2>
+        <p className="text-xs text-muted-foreground">This project collection belongs to another client workspace.</p>
+        <div className="pt-2 flex justify-center gap-3">
+          <Link to="/my-collections" className="rounded-md bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90">
+            View My Collections
+          </Link>
+          <Link to="/" className="rounded-md border border-border px-4 py-2 text-xs font-bold hover:bg-muted">
+            Back to Showroom
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const itemsWithDetails = products.map((p) => {
     const itemData = items.find((i) => i.product_id === p.id) || {};
@@ -110,6 +151,10 @@ function SharedCollection() {
     };
   });
 
+  const formattedDate = collection?.submitted_at || collection?.created_at
+    ? new Date(collection.submitted_at || collection.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+    : "Recent";
+
   const message = [
     `Hi! I'd like to inquire about this Project Collection: ${collection?.name || "Collection"} ${collection?.version > 1 ? `(v${collection.version})` : ""}`,
     `Shared Link: ${typeof window !== "undefined" ? window.location.href : ""}`,
@@ -119,64 +164,63 @@ function SharedCollection() {
   ].join("\n");
 
   return (
-    <div className="container-app py-6">
-      {/* Administrator Resolution Banner */}
-      {isAdmin && (
-        <div className="mb-4 rounded-xl border border-primary/30 bg-primary/10 p-3.5 flex flex-wrap items-center justify-between gap-2 shadow-xs">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="rounded bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">
-              Administrator View
-            </span>
-            <span className="text-foreground font-medium">
-              You are inspecting this customer inquiry as an authorized administrator.
-            </span>
-          </div>
-          <Link
-            to="/admin/collections/$id"
-            params={{ id }}
-            className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-primary-foreground hover:bg-primary/90 transition shadow-xs"
-          >
-            Open in Quotation Manager →
+    <div className="container-app py-6 space-y-6">
+      {/* Top Action Bar: Return & Continue Building */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+        <div className="flex items-center gap-3">
+          <Link to="/my-collections" className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium">
+            <ArrowLeft className="h-3.5 w-3.5" /> All Collections
           </Link>
-        </div>
-      )}
-
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-display text-2xl font-semibold">{collection?.name || "Shared Project Collection"}</h1>
-            {collection?.reference_number && (
-              <span className="rounded-md bg-card text-foreground text-xs font-mono font-bold px-2.5 py-1 border border-border">
-                {collection.reference_number}
-              </span>
-            )}
-            {collection?.version && collection.version > 1 && (
-              <span className="rounded-full bg-primary/10 text-primary text-xs font-semibold px-2.5 py-0.5 border border-primary/20">
-                v{collection.version}
-              </span>
-            )}
-            {collection?.is_locked && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-600 text-xs font-medium px-2.5 py-0.5 border border-amber-500/20">
-                <Lock className="h-3 w-3" /> Submitted Request
-              </span>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            {products.length} product{products.length === 1 ? "" : "s"} included in this quotation request
-          </p>
+          <span className="text-muted-foreground/40">•</span>
+          <span className="text-xs text-primary font-bold uppercase tracking-wider">Customer Collection Workspace</span>
         </div>
 
-        {settings?.sales_whatsapp && (
-          <a
-            href={waLink(settings.sales_whatsapp, message)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition shrink-0"
+        {/* Prominent Continue Building button linking back to Storefront Feed */}
+        <div className="flex items-center gap-2">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition shadow-xs"
           >
-            <MessageCircle className="h-4 w-4" /> Inquire on WhatsApp
-          </a>
-        )}
+            <Plus className="h-3.5 w-3.5" /> Continue Building Collection
+          </Link>
+          {settings?.sales_whatsapp && (
+            <a
+              href={waLink(settings.sales_whatsapp, message)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white hover:bg-emerald-500 transition shadow-xs"
+            >
+              <MessageCircle className="h-3.5 w-3.5" /> Inquire on WhatsApp
+            </a>
+          )}
+        </div>
       </div>
+
+      {/* Primary Submitted Collection Card */}
+      <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="font-display text-2xl font-semibold">{collection?.project_name || collection?.name || "Submitted Project Collection"}</h1>
+              {collection?.reference_number && (
+                <span className="rounded-md bg-muted text-foreground text-xs font-mono font-bold px-2.5 py-1 border border-border">
+                  {collection.reference_number}
+                </span>
+              )}
+              {collection?.version && collection.version > 1 && (
+                <span className="rounded-full bg-primary/10 text-primary text-xs font-semibold px-2.5 py-0.5 border border-primary/20">
+                  v{collection.version}
+                </span>
+              )}
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-600 text-xs font-medium px-2.5 py-0.5 border border-amber-500/20">
+                <Lock className="h-3 w-3" /> {collection?.status || "Submitted Request"}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Submitted on <strong className="text-foreground font-mono">{formattedDate}</strong> • {products.length} product{products.length === 1 ? "" : "s"} specified
+            </p>
+          </div>
+        </div>
 
       <ul className="mt-6 space-y-3">
         {itemsWithDetails.map((p) => (
@@ -213,6 +257,56 @@ function SharedCollection() {
           </li>
         ))}
       </ul>
+      </div>
+
+      {/* Previous Submissions & Revisions History */}
+      {otherCollections.length > 0 && (
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 border-b border-border/60 pb-3">
+            <History className="h-4 w-4 text-primary" />
+            <h2 className="font-display text-lg font-semibold">Your Previous Project Submissions ({otherCollections.length})</h2>
+          </div>
+          <div className="divide-y divide-border/60">
+            {otherCollections.map((hist: any) => {
+              const histDate = hist.submitted_at || hist.created_at
+                ? new Date(hist.submitted_at || hist.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                : "Previous";
+              return (
+                <div key={hist.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 first:pt-0 last:pb-0">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-sm">{hist.project_name || hist.name || "Submitted Collection"}</span>
+                      {hist.reference_number && (
+                        <span className="rounded bg-muted text-muted-foreground text-[11px] font-mono px-2 py-0.5 border border-border">
+                          {hist.reference_number}
+                        </span>
+                      )}
+                      {hist.version && hist.version > 1 && (
+                        <span className="rounded-full bg-primary/10 text-primary text-[10px] font-semibold px-2 py-0.2 border border-primary/20">
+                          v{hist.version}
+                        </span>
+                      )}
+                      <span className="rounded-full bg-secondary text-secondary-foreground text-[10px] px-2 py-0.2 capitalize">
+                        {hist.status || "Submitted"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Submitted on <span className="font-medium text-foreground">{histDate}</span>
+                    </p>
+                  </div>
+                  <Link
+                    to="/collection/$id"
+                    params={{ id: hist.id }}
+                    className="inline-flex items-center justify-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition"
+                  >
+                    View Project & Products →
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

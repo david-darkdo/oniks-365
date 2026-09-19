@@ -118,7 +118,9 @@ Your output directly populates the ONIKS365 Digital Showroom products table.`;
       .replace(/{type}/g, typeName)
       .replace(/{category}/g, categoryName)
       .replace(/{subcategory}/g, subcategoryName)
-      .replace(/{family}/g, familyName);
+      .replace(/{family}/g, familyName)
+      .replace(/{differentiator_type}/g, (product as any).differentiator_type || "None specified")
+      .replace(/{differentiator_note}/g, (product as any).differentiator_note || "None specified");
 
     if (familyOverride) {
       prompt += `\n\nAdditional Family Directives: ${familyOverride}`;
@@ -216,8 +218,10 @@ Your output directly populates the ONIKS365 Digital Showroom products table.`;
     const showroomSearchIndex = Array.isArray(json.showroom_search_index) ? json.showroom_search_index.filter(Boolean) : [];
     const seoKeywords = Array.isArray(json.seo_keywords) ? json.seo_keywords.filter(Boolean) : [];
 
+    const rawSearchKeywordsList = Array.isArray(json.search_keywords) ? json.search_keywords.filter(Boolean) : [];
+
     // Build Master Document Object
-    const masterDocument = {
+    const masterDocument: Record<string, any> = {
       alternative_names: alternativeNames,
       customer_search_phrases: customerSearchPhrases,
       search_synonyms: searchSynonyms,
@@ -230,6 +234,7 @@ Your output directly populates the ONIKS365 Digital Showroom products table.`;
       google_local_search_terms: googleLocalSearchTerms,
       location_keywords: locationKeywords,
       showroom_search_index: showroomSearchIndex,
+      search_keywords: rawSearchKeywordsList,
       seo_keywords: seoKeywords,
       open_graph_title: json.open_graph_title || "",
       open_graph_description: json.open_graph_description || "",
@@ -238,9 +243,6 @@ Your output directly populates the ONIKS365 Digital Showroom products table.`;
       installation_type: json.installation_type || "",
       installation_context: json.installation_context || contextName,
     };
-
-    productPatch.master_document = masterDocument;
-    productPatch.ai_understanding = masterDocument;
 
     // Combined SEO Keywords
     const combinedSeoKeywords = [
@@ -264,8 +266,12 @@ Your output directly populates the ONIKS365 Digital Showroom products table.`;
         .filter(Boolean);
       if (normalizedFaq.length > 0) {
         productPatch.faq = normalizedFaq;
+        masterDocument.faq = normalizedFaq;
       }
     }
+
+    productPatch.master_document = masterDocument;
+    productPatch.ai_understanding = masterDocument;
     if (json.structured_data) {
       productPatch.structured_data = json.structured_data;
     }

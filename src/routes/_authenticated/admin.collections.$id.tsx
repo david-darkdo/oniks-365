@@ -66,6 +66,7 @@ function AdminQuotationDetailPage() {
   const [items, setItems] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [inquiry, setInquiry] = useState<any>(null);
+  const [historyCollections, setHistoryCollections] = useState<any[]>([]);
   const [admins, setAdmins] = useState<Array<{ id: string; full_name: string | null; email: string | null; auth_id: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [savingNotes, setSavingNotes] = useState(false);
@@ -126,7 +127,24 @@ function AdminQuotationDetailPage() {
       }
       setItems(rawItems || []);
 
-      // 3. Fetch customer profile if user_id present
+      // 3. Fetch collection history for this customer
+      if (coll.user_id) {
+        const { data: hist } = await supabase
+          .from("collections")
+          .select("id, name, project_name, reference_number, version, status, is_locked, created_at, submitted_at, parent_collection_id")
+          .eq("user_id", coll.user_id)
+          .order("created_at", { ascending: false });
+        setHistoryCollections(hist || []);
+      } else if (coll.parent_collection_id) {
+        const { data: hist } = await supabase
+          .from("collections")
+          .select("id, name, project_name, reference_number, version, status, is_locked, created_at, submitted_at, parent_collection_id")
+          .or(`id.eq.${coll.parent_collection_id},parent_collection_id.eq.${coll.parent_collection_id}`)
+          .order("created_at", { ascending: false });
+        setHistoryCollections(hist || []);
+      }
+
+      // 4. Fetch customer profile if user_id present
       if (coll.user_id) {
         const { data: prof } = await supabase
           .from("profiles")
@@ -136,7 +154,7 @@ function AdminQuotationDetailPage() {
         if (prof) setProfile(prof);
       }
 
-      // 4. Fetch linked whatsapp inquiry
+      // 5. Fetch linked whatsapp inquiry
       const { data: inq } = await supabase
         .from("whatsapp_inquiries")
         .select("*")
@@ -587,6 +605,70 @@ function AdminQuotationDetailPage() {
             <p className="text-[10px] text-muted-foreground leading-relaxed">
               These notes are private to administrators and will never be shown to customers.
             </p>
+          </div>
+
+          {/* Customer Collection History & Snapshots */}
+          <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between border-b border-border/60 pb-2">
+              <h3 className="font-display text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-primary" /> Customer Request History ({historyCollections.length})
+              </h3>
+            </div>
+            {historyCollections.length > 0 ? (
+              <div className="space-y-2.5 max-h-72 overflow-y-auto">
+                {historyCollections.map((hist) => {
+                  const isCurrent = hist.id === id;
+                  const histDate = hist.submitted_at || hist.created_at;
+                  const formattedHistDate = histDate 
+                    ? new Date(histDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                    : "Recent";
+
+                  return (
+                    <div 
+                      key={hist.id} 
+                      className={`rounded-lg border p-2.5 text-xs transition ${
+                        isCurrent 
+                          ? "border-primary/50 bg-primary/5 shadow-xs" 
+                          : "border-border/70 bg-background hover:border-primary/30"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="font-semibold text-foreground truncate max-w-[150px]">
+                          {hist.project_name || hist.name || "Project Request"}
+                        </span>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {hist.version > 1 && (
+                            <span className="rounded bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.2 border border-primary/20">
+                              v{hist.version}
+                            </span>
+                          )}
+                          <span className="rounded bg-muted px-1.5 py-0.2 text-[9px] font-bold uppercase text-muted-foreground border border-border">
+                            {hist.status || (hist.is_locked ? "Submitted" : "Draft")}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>{formattedHistDate}</span>
+                        {isCurrent ? (
+                          <span className="font-bold text-primary text-[10px]">● Active Snapshot</span>
+                        ) : (
+                          <Link 
+                            to="/admin/collections/$id" 
+                            params={{ id: hist.id }} 
+                            className="font-semibold text-primary hover:underline"
+                          >
+                            Open Snapshot →
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic py-2">No other historical requests found for this customer.</p>
+            )}
           </div>
         </div>
       </div>

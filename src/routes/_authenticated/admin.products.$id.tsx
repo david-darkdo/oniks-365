@@ -649,6 +649,114 @@ function RebuiltEditProductPage() {
                 <p className="text-[11px] text-muted-foreground">Product details engine synced. Ready for publishing.</p>
               )}
             </div>
+
+            {/* Generated Highlights, Features & Benefits */}
+            <div className="grid gap-3 sm:grid-cols-3 pt-2">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Product Highlights</label>
+                <textarea
+                  rows={3}
+                  value={arrToStr(p.master_document?.product_highlights)}
+                  onChange={(e) => {
+                    const arr = strToArr(e.target.value);
+                    setField("master_document", { ...(p.master_document || {}), product_highlights: arr });
+                  }}
+                  placeholder="Key selling points..."
+                  className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Product Features</label>
+                <textarea
+                  rows={3}
+                  value={arrToStr(p.master_document?.product_features)}
+                  onChange={(e) => {
+                    const arr = strToArr(e.target.value);
+                    setField("master_document", { ...(p.master_document || {}), product_features: arr });
+                  }}
+                  placeholder="Technical & architectural features..."
+                  className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Product Benefits</label>
+                <textarea
+                  rows={3}
+                  value={arrToStr(p.master_document?.product_benefits)}
+                  onChange={(e) => {
+                    const arr = strToArr(e.target.value);
+                    setField("master_document", { ...(p.master_document || {}), product_benefits: arr });
+                  }}
+                  placeholder="Customer lifestyle & durability benefits..."
+                  className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Frequently Asked Questions (FAQ) Management */}
+            <div className="pt-2 border-t border-border/60">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-foreground">
+                  Product FAQs ({Array.isArray(p.faq) ? p.faq.length : 0})
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentFaq = Array.isArray(p.faq) ? [...p.faq] : [];
+                    setField("faq", [...currentFaq, { question: "", answer: "" }]);
+                  }}
+                  className="rounded border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/20 transition"
+                >
+                  + Add FAQ
+                </button>
+              </div>
+
+              {Array.isArray(p.faq) && p.faq.length > 0 ? (
+                <div className="space-y-3">
+                  {p.faq.map((item: any, idx: number) => (
+                    <div key={idx} className="rounded-lg border border-border bg-background p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase text-primary">Question #{idx + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const nextFaq = p.faq.filter((_: any, i: number) => i !== idx);
+                            setField("faq", nextFaq);
+                          }}
+                          className="text-[10px] text-destructive hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={item.question || ""}
+                        onChange={(e) => {
+                          const nextFaq = [...p.faq];
+                          nextFaq[idx] = { ...nextFaq[idx], question: e.target.value };
+                          setField("faq", nextFaq);
+                        }}
+                        placeholder="e.g. Is installation hardware included?"
+                        className="w-full rounded-md border border-input bg-card p-2 text-xs font-medium"
+                      />
+                      <textarea
+                        rows={2}
+                        value={item.answer || ""}
+                        onChange={(e) => {
+                          const nextFaq = [...p.faq];
+                          nextFaq[idx] = { ...nextFaq[idx], answer: e.target.value };
+                          setField("faq", nextFaq);
+                        }}
+                        placeholder="Accurate factual answer..."
+                        className="w-full rounded-md border border-input bg-card p-2 text-xs text-muted-foreground"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic py-1">No FAQs generated yet. Run Engine 1 to populate 2–3 product-specific questions.</p>
+              )}
+            </div>
           </div>
         )}
       </section>
@@ -733,10 +841,10 @@ function RebuiltEditProductPage() {
         {showSearchSection && (
           <div className="p-5 border-t border-border space-y-4 bg-muted/10">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Search Keywords</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Search Keywords (App Index)</label>
               <textarea
                 rows={2}
-                value={arrToStr(p.app_keywords || p.app_search_keywords || p.master_document?.google_search_tags)}
+                value={arrToStr(p.app_keywords || p.app_search_keywords || p.master_document?.search_keywords || p.master_document?.google_search_tags)}
                 onChange={(e) => setField("app_keywords", strToArr(e.target.value))}
                 className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs font-mono"
               />
@@ -761,13 +869,13 @@ function RebuiltEditProductPage() {
             </div>
 
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Synonyms & Customer Phrases</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Customer Search Phrases</label>
               <textarea
                 rows={2}
-                value={arrToStr(p.master_document?.customer_search_phrases || p.master_document?.search_synonyms)}
+                value={arrToStr(p.master_document?.customer_search_phrases)}
                 onChange={(e) => {
                   const arr = strToArr(e.target.value);
-                  const nextDoc = { ...(p.master_document || {}), customer_search_phrases: arr, search_synonyms: arr };
+                  const nextDoc = { ...(p.master_document || {}), customer_search_phrases: arr };
                   setField("master_document", nextDoc);
                 }}
                 className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
@@ -775,7 +883,21 @@ function RebuiltEditProductPage() {
             </div>
 
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Related Terms</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Synonyms</label>
+              <textarea
+                rows={2}
+                value={arrToStr(p.master_document?.search_synonyms)}
+                onChange={(e) => {
+                  const arr = strToArr(e.target.value);
+                  const nextDoc = { ...(p.master_document || {}), search_synonyms: arr };
+                  setField("master_document", nextDoc);
+                }}
+                className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Related Search Terms</label>
               <textarea
                 rows={2}
                 value={arrToStr(p.master_document?.related_search_terms)}
@@ -799,6 +921,20 @@ function RebuiltEditProductPage() {
                   setField("master_document", nextDoc);
                 }}
                 className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Showroom Search Index Tokens</label>
+              <textarea
+                rows={2}
+                value={arrToStr(p.master_document?.showroom_search_index)}
+                onChange={(e) => {
+                  const arr = strToArr(e.target.value);
+                  const nextDoc = { ...(p.master_document || {}), showroom_search_index: arr };
+                  setField("master_document", nextDoc);
+                }}
+                className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs font-mono"
               />
             </div>
           </div>

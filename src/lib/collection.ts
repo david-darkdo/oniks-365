@@ -470,19 +470,8 @@ export async function lockAndSubmitCollection(collectionId: string, userId?: str
     } catch {}
   }
 
-  // 2. Automatically create a brand-new empty Draft Collection for the user in Supabase
-  if (userId) {
-    try {
-      await supabase.from("collections").insert({
-        user_id: userId,
-        name: "Project Workspace",
-        is_locked: false,
-        status: "Draft"
-      });
-    } catch {}
-  }
-
-  // 3. Clear local active draft cache & user requirement maps to prepare clean new workspace
+  // 2. Clear local active draft cache & user requirement maps to prepare clean new workspace
+  // An active collection will be created on-demand only when the customer resumes adding items.
   if (typeof window !== "undefined") {
     if (userId) {
       const cacheKey = `${CACHED_ITEMS_KEY_PREFIX}${userId}`;

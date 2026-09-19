@@ -9,7 +9,7 @@ import {
   detectProductUnit
 } from "@/lib/collection";
 import { toast } from "sonner";
-import { FileText, RefreshCw, Lock, Calendar, Layers, ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { FileText, RefreshCw, Lock, Calendar, Layers, ArrowLeft, ChevronDown, ChevronUp, Plus, ExternalLink } from "lucide-react";
 import { publicImageUrl } from "@/components/ImageUploader";
 
 export const Route = createFileRoute("/my-collections")({
@@ -133,9 +133,17 @@ function MyCollectionsHistoryPage() {
             Permanent immutable record of your submitted project quotation requests.
           </p>
         </div>
-        <Link to="/collection" className="inline-flex items-center gap-2 rounded-lg bg-[#0F1115] border border-[#C5A059]/40 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#1A1D24] hover:text-[#D4AF37] transition shrink-0 shadow-md">
-          <Layers className="h-4 w-4 text-[#D4AF37]" /> Go to Active Workspace
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/20 transition shrink-0 shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5" /> Continue Building Collection
+          </Link>
+          <Link to="/collection" className="inline-flex items-center gap-2 rounded-lg bg-[#0F1115] border border-[#C5A059]/40 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#1A1D24] hover:text-[#D4AF37] transition shrink-0 shadow-md">
+            <Layers className="h-4 w-4 text-[#D4AF37]" /> Go to Active Workspace
+          </Link>
+        </div>
       </div>
 
       {historyCollections.length === 0 ? (
@@ -145,9 +153,14 @@ function MyCollectionsHistoryPage() {
           <p className="text-xs text-muted-foreground max-w-md mx-auto">
             When you submit a project collection via Push to WhatsApp, a permanent immutable record will be stored here.
           </p>
-          <Link to="/collection" className="inline-block rounded-md bg-primary px-4 py-2 text-xs font-medium text-primary-foreground">
-            Open Active Project Workspace
-          </Link>
+          <div className="flex flex-wrap justify-center gap-3 pt-2">
+            <Link to="/" className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-xs font-bold text-primary-foreground">
+              <Plus className="h-3.5 w-3.5" /> Start Building on Showroom
+            </Link>
+            <Link to="/collection" className="inline-block rounded-md border border-border px-4 py-2 text-xs font-medium hover:bg-muted">
+              Open Active Workspace
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
@@ -164,15 +177,17 @@ function MyCollectionsHistoryPage() {
                 <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-display text-base font-semibold">{col.name || "Project Request"}</h3>
+                      <h3 className="font-display text-base font-semibold">{col.project_name || col.name || "Project Request"}</h3>
                       {col.reference_number && (
                         <span className="rounded-md bg-surface-2 text-foreground text-xs font-mono font-bold px-2.5 py-0.5 border border-border">
                           {col.reference_number}
                         </span>
                       )}
-                      <span className="rounded-full bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 border border-primary/20">
-                        v{col.version || 1}
-                      </span>
+                      {col.version && col.version > 1 && (
+                        <span className="rounded-full bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 border border-primary/20">
+                          v{col.version}
+                        </span>
+                      )}
                       <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-medium px-2 py-0.5 border border-amber-500/20">
                         <Lock className="h-3 w-3" /> Immutable Record
                       </span>
@@ -188,13 +203,21 @@ function MyCollectionsHistoryPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    <Link
+                      to="/collection/$id"
+                      params={{ id: col.id }}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline px-3 py-2 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" /> View Record
+                    </Link>
+
                     <button
                       onClick={() => toggleExpand(col.id)}
                       className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground px-3 py-2 rounded-lg border border-border bg-background hover:bg-surface-2 transition"
                     >
                       {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      <span>{isExpanded ? "Hide Details" : `View Products (${prods.length})`}</span>
+                      <span>{isExpanded ? "Hide" : `Products (${prods.length})`}</span>
                     </button>
 
                     {/* Create Updated Request (v+1) Action Button */}
@@ -204,7 +227,7 @@ function MyCollectionsHistoryPage() {
                       className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700 transition shadow-sm"
                     >
                       <RefreshCw className={`h-3.5 w-3.5 ${isDuplicating ? "animate-spin" : ""}`} />
-                      Duplicate to Active Workspace
+                      Duplicate to Active
                     </button>
                   </div>
                 </div>

@@ -26,6 +26,7 @@ type Row = {
   products_count: number;
   created_at: string;
   submitted_at: string | null;
+  display_date: string;
   whatsapp_sent: boolean;
   is_locked: boolean;
   version: number;
@@ -34,6 +35,7 @@ type Row = {
   assigned_admin_id: string | null;
   internal_notes: string | null;
   inquiry_id: string | null;
+  history_count: number;
 };
 
 function CollectionsCrmPage() {
@@ -51,7 +53,7 @@ function CollectionsCrmPage() {
       supabase.from("collections").select("*").order("created_at", { ascending: false }),
       supabase.from("collection_items").select("*"),
       supabase.from("profiles").select("id,auth_id,full_name,email,phone_number"),
-      supabase.from("whatsapp_inquiries").select("id,collection_id,assigned_admin_id,inquiry_status"),
+      supabase.from("whatsapp_inquiries").select("id,collection_id,assigned_admin_id,inquiry_status,customer_name,customer_phone"),
       supabase.from("user_roles").select("user_id,role"),
     ]);
     const profByAuth = new Map((profs ?? []).map((p: any) => [p.auth_id, p]));
@@ -64,40 +66,63 @@ function CollectionsCrmPage() {
     const adminList = (profs ?? []).filter((p: any) => adminIds.has(p.auth_id));
     setAdmins(adminList as any);
 
-    const out: Row[] = (colls ?? []).map((c: any) => {
-      const p = profByAuth.get(c.user_id) as any;
-      const inq = inqByColl.get(c.id);
+    // Group collections by Customer so each customer is ONE workspace in the pipeline
+    const groupsByCustomer = new Map<string, any[]>();
+    (colls ?? []).forEach((c: any) => {
+      const key = c.user_id || c.id;
+      if (!groupsByCustomer.has(key)) groupsByCustomer.set(key, []);
+      groupsByCustomer.get(key)!.push(c);
+    });
+
+    const out: Row[] = Array.from(groupsByCustomer.values()).map((customerColls) => {
+      // Sort to prioritize latest submitted request, then newest created
+      customerColls.sort((a, b) => {
+        const timeA = new Date(a.submitted_at || a.created_at).getTime();
+        const timeB = new Date(b.submitted_at || b.created_at).getTime();
+        return timeB - timeA;
+      });
+
+      const active = customerColls[0];
+      const p = profByAuth.get(active.user_id) as any;
+      const inq = inqByColl.get(active.id);
       
       let rawStatus: Stage = "Draft";
-      if (c.status && STAGES.includes(c.status as any)) {
-        rawStatus = c.status as Stage;
-      } else if (c.whatsapp_sent || c.inquiry_status === "SENT") {
+      if (active.status && STAGES.includes(active.status as any)) {
+        rawStatus = active.status as Stage;
+      } else if (active.whatsapp_sent || active.inquiry_status === "SENT") {
         rawStatus = "Sent";
-      } else if (c.inquiry_status && STAGES.includes(c.inquiry_status as any)) {
-        rawStatus = c.inquiry_status as Stage;
+      } else if (active.inquiry_status && STAGES.includes(active.inquiry_status as any)) {
+        rawStatus = active.inquiry_status as Stage;
       }
 
+      const dateVal = active.submitted_at || active.created_at;
+      const displayDate = dateVal 
+        ? new Date(dateVal).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+        : "Recent";
+
       return {
-        id: c.id,
-        user_id: c.user_id,
-        name: c.name || "Collection",
-        reference_number: c.reference_number || null,
-        project_name: c.project_name || null,
-        customer_name: p?.full_name ?? null,
+        id: active.id,
+        user_id: active.user_id,
+        name: active.name || "Collection",
+        reference_number: active.reference_number || null,
+        project_name: active.project_name || null,
+        customer_name: p?.full_name || inq?.customer_name || null,
         customer_email: p?.email ?? null,
-        customer_phone: p?.phone_number ?? null,
+        customer_phone: p?.phone_number || inq?.customer_phone || null,
         customer_profile_id: p?.id ?? null,
-        products_count: itemCount.get(c.id) ?? 0,
-        created_at: c.created_at,
-        submitted_at: c.submitted_at || null,
-        whatsapp_sent: !!c.whatsapp_sent,
-        is_locked: c.is_locked ?? Boolean(c.whatsapp_sent),
-        version: c.version || 1,
-        parent_collection_id: c.parent_collection_id || null,
+        products_count: itemCount.get(active.id) ?? 0,
+        created_at: active.created_at,
+        submitted_at: active.submitted_at || null,
+        display_date: displayDate,
+        whatsapp_sent: !!active.whatsapp_sent,
+        is_locked: active.is_locked ?? Boolean(active.whatsapp_sent),
+        version: active.version || 1,
+        parent_collection_id: active.parent_collection_id || null,
         status: rawStatus,
         assigned_admin_id: inq?.assigned_admin_id ?? null,
-        internal_notes: c.internal_notes ?? null,
+        internal_notes: active.internal_notes ?? null,
         inquiry_id: inq?.id ?? null,
+        history_count: customerColls.length,
       };
     });
     setRows(out);
@@ -177,37 +202,46 @@ function CollectionsCrmPage() {
             </div>
             <div className="space-y-2">
               {byStage[stage].map((r) => (
-                <div key={r.id} className="rounded-lg border border-border/80 bg-background p-2.5 text-xs shadow-sm hover:border-primary/40 transition">
+                <div key={r.id} className="rounded-lg border border-border/80 bg-background p-3 text-xs shadow-sm hover:border-primary/40 transition space-y-2">
                   <div className="flex items-start justify-between gap-1">
-                    <div>
-                      <span className="font-semibold text-foreground block truncate max-w-[130px]">{r.name}</span>
-                      <span className="text-[10px] text-muted-foreground block">{r.customer_name || r.customer_email || "Guest User"}</span>
+                    <div className="min-w-0 flex-1">
+                      <span className="font-bold text-foreground block truncate text-sm">{r.customer_name || "Valued Client"}</span>
+                      <span className="text-[11px] text-muted-foreground block truncate">{r.project_name || r.name}</span>
+                      {r.customer_phone && <span className="text-[10px] text-primary/80 font-mono block truncate">{r.customer_phone}</span>}
                     </div>
-                    {r.version > 1 && (
-                      <span className="rounded bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 border border-primary/20">v{r.version}</span>
-                    )}
+                    {r.version > 1 ? (
+                      <span className="rounded bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 border border-primary/20 shrink-0">v{r.version}</span>
+                    ) : r.history_count > 1 ? (
+                      <span className="rounded bg-muted text-muted-foreground text-[10px] font-medium px-1.5 py-0.5 border border-border shrink-0">{r.history_count} reqs</span>
+                    ) : null}
                   </div>
 
-                  <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground border-t border-border/40 pt-1.5">
-                    <span>{r.products_count} Items</span>
-                    <span>{new Date(r.created_at).toLocaleDateString()}</span>
+                  <div className="flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/40 pt-1.5">
+                    <span className="font-semibold text-foreground">{r.products_count} Item{r.products_count === 1 ? "" : "s"}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground">{r.display_date}</span>
                   </div>
 
-                  <div className="mt-2 space-y-1">
-                    <select value={r.status} onChange={(e) => setStage(r, e.target.value as Stage)} className="w-full rounded border border-border bg-card px-1.5 py-1 text-[10px] font-medium">
-                      {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <select value={r.assigned_admin_id ?? ""} onChange={(e) => assign(r, e.target.value)} className="w-full rounded border border-border bg-card px-1.5 py-1 text-[10px]">
-                      <option value="">Unassigned</option>
-                      {admins.map((a) => <option key={a.id} value={a.id}>{a.full_name || a.email}</option>)}
-                    </select>
+                  <div className="space-y-1.5 pt-1">
+                    <div>
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block mb-0.5">Pipeline Status</label>
+                      <select value={r.status} onChange={(e) => setStage(r, e.target.value as Stage)} className="w-full rounded border border-border bg-card px-2 py-1 text-[10px] font-medium">
+                        {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block mb-0.5">Assigned Officer</label>
+                      <select value={r.assigned_admin_id ?? ""} onChange={(e) => assign(r, e.target.value)} className="w-full rounded border border-border bg-card px-2 py-1 text-[10px]">
+                        <option value="">Unassigned</option>
+                        {admins.map((a) => <option key={a.id} value={a.id}>{a.full_name || a.email}</option>)}
+                      </select>
+                    </div>
                   </div>
 
-                  <div className="mt-2 flex items-center justify-between gap-1 text-[10px]">
+                  <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-1 text-[11px]">
                     <Link to="/admin/collections/$id" params={{ id: r.id }} className="inline-flex items-center gap-1 font-bold text-primary hover:underline">
-                      <FileText className="h-3 w-3" /> Resolve Quote
+                      <FileText className="h-3.5 w-3.5" /> Open Workspace →
                     </Link>
-                    <Link to="/collection/$id" params={{ id: r.id }} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground">
+                    <Link to="/collection/$id" params={{ id: r.id }} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground text-[10px]">
                       <ExternalLink className="h-3 w-3" /> Customer View
                     </Link>
                   </div>
