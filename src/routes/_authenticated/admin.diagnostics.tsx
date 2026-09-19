@@ -869,7 +869,7 @@ function DiagnosticsPage() {
                 setRebuildingSearch(true);
                 try {
                   const res = await rebuildSearch();
-                  toast.success(`Search index completely rebuilt for ${res.count} products!`);
+                  toast.success(`Search index rebuilt for ${res.count} products (${(res as any).orphans ?? 0} orphans cleaned)!`);
                   loadDiscovery();
                 } catch (e: any) {
                   toast.error(e.message || "Failed to rebuild index");
@@ -968,6 +968,14 @@ function DiagnosticsPage() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Active Redirects:</span>
                     <span className="font-semibold">{discovery.totalRedirects}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Logged Search Events:</span>
+                    <span className="font-semibold">{(discovery as any).totalSearches ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Zero-Result Searches:</span>
+                    <span className="font-semibold">{(discovery as any).zeroResultSearches ?? 0}</span>
                   </div>
                   <div className="border-t border-border pt-2 text-[10px] text-muted-foreground flex justify-between">
                     <span>Audit Time:</span>

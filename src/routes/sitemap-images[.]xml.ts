@@ -26,7 +26,8 @@ export const Route = createFileRoute("/sitemap-images.xml")({
             .from("products" as any)
             .select("id, slug, name, alt_text, seo_description, image_url, generated_installed_image, generated_studio_image")
             .eq("status", "published")
-            .eq("hidden", false);
+            .eq("hidden", false)
+            .is("deleted_at", null);
 
           if (products) {
             for (const p of (products as any[])) {

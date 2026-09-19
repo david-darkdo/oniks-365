@@ -2,8 +2,8 @@ import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-route
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { ProductCard } from "@/components/ProductCard";
-import { fetchProductBySlug, fetchRelatedProducts } from "@/lib/catalog";
-import { ArrowLeft, Heart, ShoppingBag, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { fetchProductBySlug, fetchRelatedProducts, fetchFamilyProducts } from "@/lib/catalog";
+import { ArrowLeft, Heart, ShoppingBag, X, ZoomIn, ZoomOut, ChevronLeft, ChevronRight, Sparkles, Layers } from "lucide-react";
 import { AddToCollectionButton } from "@/components/AddToCollectionButton";
 import { publicImageUrl } from "@/components/ImageUploader";
 import { useEffect, useState, useMemo } from "react";
@@ -15,27 +15,45 @@ import { toast } from "sonner";
 import { getProductionOrigin } from "@/lib/origin";
 import { getCanonicalProductSlug, getCanonicalProductUrl, getCanonicalProductPath } from "@/lib/product-url";
 
-const productQuery = (slug: string) =>
+const productQuery = (slug: string, origin: string) =>
   queryOptions({
     queryKey: ["product", slug],
     queryFn: async () => {
       const p = await fetchProductBySlug(slug);
-      if (!p) throw notFound();
+      if (!p) {
+        // Section 21: Check redirects table for historical or legacy slug redirect (HTTP 301)
+        const { data: redirectRow } = await supabase
+          .from("redirects")
+          .select("new_path, status_code")
+          .eq("old_path", `/product/${slug}`)
+          .maybeSingle();
+
+        if (redirectRow?.new_path) {
+          throw redirect({
+            href: redirectRow.new_path.startsWith("http") ? redirectRow.new_path : `${origin}${redirectRow.new_path}`,
+            statusCode: (redirectRow.status_code || 301) as any,
+          });
+        }
+        throw notFound();
+      }
       return p;
     },
   });
 
-const relatedQuery = (familyId: string | null, excludeId: string) =>
+const relatedQuery = (
+  familyId: string | null,
+  excludeId: string,
+  fallback?: { subcategoryId?: string | null; categoryId?: string | null; typeId?: string | null }
+) =>
   queryOptions({
-    queryKey: ["related", familyId, excludeId],
-    queryFn: () => fetchRelatedProducts(familyId, excludeId),
-    enabled: !!familyId,
+    queryKey: ["related", familyId, excludeId, fallback?.subcategoryId, fallback?.categoryId, fallback?.typeId],
+    queryFn: () => fetchRelatedProducts(familyId, excludeId, null, fallback),
   });
 
 export const Route = createFileRoute("/product/$slug")({
   loader: async ({ context, params }) => {
     const origin = getProductionOrigin();
-    const product = await context.queryClient.ensureQueryData(productQuery(params.slug));
+    const product = await context.queryClient.ensureQueryData(productQuery(params.slug, origin));
 
     // Redirect unnormalized or legacy slug formats to canonical URL (HTTP 301)
     const canonicalSlug = getCanonicalProductSlug(product);
@@ -46,21 +64,29 @@ export const Route = createFileRoute("/product/$slug")({
       });
     }
 
-    context.queryClient.ensureQueryData(relatedQuery(product.family_id, product.id));
+    const fallbackHierarchy = {
+      subcategoryId: product.subcategory_id,
+      categoryId: product.category_id,
+      typeId: product.type_id,
+    };
 
-    // Fetch taxonomy parents & installation assets
-    const [typeRes, categoryRes, subcategoryRes, familyRes, assetsRes] = await Promise.all([
+    context.queryClient.ensureQueryData(relatedQuery(product.family_id, product.id, fallbackHierarchy));
+
+    // Fetch taxonomy parents, installation assets, and sibling family variants
+    const [typeRes, categoryRes, subcategoryRes, familyRes, assetsRes, familyVariants] = await Promise.all([
       product.type_id ? supabase.from("product_types").select("name, slug").eq("id", product.type_id).maybeSingle() : Promise.resolve({ data: null }),
       product.category_id ? supabase.from("categories").select("name, slug").eq("id", product.category_id).maybeSingle() : Promise.resolve({ data: null }),
       product.subcategory_id ? supabase.from("subcategories").select("name, slug").eq("id", product.subcategory_id).maybeSingle() : Promise.resolve({ data: null }),
       product.family_id ? supabase.from("family_groups").select("name, slug").eq("id", product.family_id).maybeSingle() : Promise.resolve({ data: null }),
       supabase.from("product_assets").select("id, asset_url, asset_type, created_at").eq("product_id", product.id).eq("asset_type", "installed").order("created_at", { ascending: false }),
+      product.family_id ? fetchFamilyProducts(product.family_id, product.id) : Promise.resolve([]),
     ]);
 
     return {
       product,
       origin,
       installationAssets: assetsRes.data ?? [],
+      familyVariants: familyVariants || [],
       taxonomy: {
         type: typeRes.data,
         category: categoryRes.data,
@@ -145,9 +171,15 @@ function ProductDetailSkeleton() {
 }
 
 function ProductPage() {
-  const { product, origin, installationAssets, taxonomy } = Route.useLoaderData();
+  const { product, origin, installationAssets, taxonomy, familyVariants } = Route.useLoaderData();
+  const fallbackHierarchy = useMemo(() => ({
+    subcategoryId: product.subcategory_id,
+    categoryId: product.category_id,
+    typeId: product.type_id,
+  }), [product.subcategory_id, product.category_id, product.type_id]);
+
   const { data: related = [] } = useSuspenseQuery(
-    relatedQuery(product.family_id, product.id),
+    relatedQuery(product.family_id, product.id, fallbackHierarchy),
   );
 
   const { user } = useAuth();
@@ -299,6 +331,12 @@ function ProductPage() {
       "priceValidUntil": "2027-12-31",
       "availability": "https://schema.org/InStock",
       "itemCondition": "https://schema.org/NewCondition",
+      "priceSpecification": {
+        "@type": "UnitPriceSpecification",
+        "price": product.price || 0,
+        "priceCurrency": "NGN",
+        "unitText": (product as any).pricing_unit || "piece"
+      },
       "seller": {
         "@type": "Organization",
         "name": "ONIKS365",
@@ -522,6 +560,68 @@ function ProductPage() {
             </button>
           </div>
         </div>
+
+        {/* FAMILY SIBLING VARIANTS (Section 13: Color / Finish / Material Variant Switching) */}
+        {familyVariants && familyVariants.length > 0 && (
+          <section className="mt-10 rounded-2xl border border-primary/20 bg-muted/30 p-5 shadow-xs">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary font-bold">
+                  {taxonomy.family?.name || "Collection"} Variations
+                </p>
+                <h3 className="font-display text-base font-extrabold uppercase tracking-tight text-foreground">
+                  Other Finishes & Variants in this Collection
+                </h3>
+              </div>
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold text-primary">
+                {familyVariants.length} available
+              </span>
+            </div>
+            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+              {familyVariants.map((v) => {
+                const img = publicImageUrl(v.image_url) || publicImageUrl(v.generated_studio_image);
+                return (
+                  <Link
+                    key={v.id}
+                    to={getCanonicalProductPath(v)}
+                    className="group flex flex-col rounded-xl border border-border bg-card p-2.5 transition hover:border-primary hover:shadow-md"
+                  >
+                    <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-muted flex items-center justify-center">
+                      {img ? (
+                        <img
+                          src={img}
+                          alt={v.name}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground">No image</span>
+                      )}
+                      {(v.color || v.finish) && (
+                        <span className="absolute bottom-1.5 left-1.5 rounded bg-black/75 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
+                          {v.color || v.finish}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-2 flex-1">
+                      <p className="text-[11px] font-bold text-foreground line-clamp-1 group-hover:text-primary transition">
+                        {v.name}
+                      </p>
+                      <p className="mt-0.5 text-[10px] font-mono text-muted-foreground">
+                        {v.code ? `Code ${v.code}` : ""}
+                      </p>
+                      {v.price != null && (
+                        <p className="mt-1 text-xs font-bold text-primary">
+                          ₦{Number(v.price).toLocaleString()}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* RELATED PRODUCTS */}
         {related.length > 0 && (

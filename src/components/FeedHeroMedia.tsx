@@ -67,9 +67,11 @@ export function FeedHeroMedia({ items }: FeedHeroMediaProps) {
     };
   }, [currentIndex, currentItem, activeItems.length]);
 
-  // Video natural completion handler
+  // Video natural completion handler: advances to next slide only if multiple slides exist
   const handleVideoEnded = () => {
-    goToNext();
+    if (activeItems.length > 1) {
+      goToNext();
+    }
   };
 
   if (!currentItem) {
@@ -99,7 +101,7 @@ export function FeedHeroMedia({ items }: FeedHeroMediaProps) {
                 muted={isMuted}
                 playsInline
                 preload="auto"
-                loop={activeItems.length === 1}
+                loop={false}
                 onEnded={handleVideoEnded}
                 className="w-full h-full object-cover"
               />

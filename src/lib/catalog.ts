@@ -112,91 +112,48 @@ export async function fetchFeedProductsPaginated(
   cursor: CursorParam | null = null,
   limit: number = 24
 ): Promise<PaginatedFeedResult> {
-  // 1. Search Query Path
+  // 1. Search Query Path (Server-Side Ranked & Paginated Search Engine V2)
   if (filters.q && filters.q.trim()) {
     const term = filters.q.trim();
-    const matchedIdSet = new Set<string>();
+    const offset = cursor?.rank ?? 0;
 
-    const { data: ranked } = await supabase.rpc("search_products" as any, {
+    const { data: rankedRows, error: rpcError } = await supabase.rpc("search_products_v2" as any, {
       _q: term,
-      _limit: 500,
+      _type: filters.type || null,
+      _category: filters.category || null,
+      _subcategory: filters.subcategory || null,
+      _limit: limit,
+      _offset: offset,
     } as any);
-    if (ranked && Array.isArray(ranked)) {
-      ranked.forEach((r: any) => { if (r?.product_id) matchedIdSet.add(r.product_id); });
-    }
 
-    const { data: ilikeProducts } = await applyPublicFilters(
-      supabase.from("products").select("id")
-    ).or(`name.ilike.%${term}%,code.ilike.%${term}%,brand.ilike.%${term}%,short_description.ilike.%${term}%,material.ilike.%${term}%,finish.ilike.%${term}%,color.ilike.%${term}%,size.ilike.%${term}%,differentiator_note.ilike.%${term}%,differentiator_type.ilike.%${term}%,pricing_unit.ilike.%${term}%`);
-
-    if (ilikeProducts) {
-      ilikeProducts.forEach((p: any) => matchedIdSet.add(p.id));
-    }
-
-    const [typeMatches, catMatches, subMatches, famMatches] = await Promise.all([
-      supabase.from("product_types").select("id").ilike("name", `%${term}%`),
-      supabase.from("categories").select("id").ilike("name", `%${term}%`),
-      supabase.from("subcategories").select("id").ilike("name", `%${term}%`),
-      supabase.from("family_groups").select("id").ilike("name", `%${term}%`),
-    ]);
-
-    const typeIds = (typeMatches.data || []).map((t: any) => t.id);
-    const catIds = (catMatches.data || []).map((c: any) => c.id);
-    const subIds = (subMatches.data || []).map((s: any) => s.id);
-    const famIds = (famMatches.data || []).map((f: any) => f.id);
-
-    const hierOrConditions: string[] = [];
-    if (typeIds.length) hierOrConditions.push(`type_id.in.(${typeIds.join(",")})`);
-    if (catIds.length) hierOrConditions.push(`category_id.in.(${catIds.join(",")})`);
-    if (subIds.length) hierOrConditions.push(`subcategory_id.in.(${subIds.join(",")})`);
-    if (famIds.length) hierOrConditions.push(`family_id.in.(${famIds.join(",")})`);
-
-    if (hierOrConditions.length > 0) {
-      const { data: hierProducts } = await applyPublicFilters(
-        supabase.from("products").select("id")
-      ).or(hierOrConditions.join(","));
-      if (hierProducts) {
-        hierProducts.forEach((p: any) => matchedIdSet.add(p.id));
-      }
-    }
-
-    const finalIds = Array.from(matchedIdSet);
-    if (finalIds.length === 0) {
+    if (rpcError) {
+      console.error("search_products_v2 error:", rpcError);
       return { items: [], nextCursor: null, hasMore: false, totalCount: 0 };
     }
 
-    let byIdQuery = applyPublicFilters(
-      supabase.from("products").select(PRODUCT_FIELDS),
-    ).in("id", finalIds);
-
-    if (filters.type) {
-      const { data } = await supabase.from("product_types").select("id").eq("slug", filters.type).maybeSingle();
-      if (data?.id) byIdQuery = byIdQuery.eq("type_id", data.id);
-    }
-    if (filters.category) {
-      const { data } = await supabase.from("categories").select("id").eq("slug", filters.category).maybeSingle();
-      if (data?.id) byIdQuery = byIdQuery.eq("category_id", data.id);
-    }
-    if (filters.subcategory) {
-      const { data } = await supabase.from("subcategories").select("id").eq("slug", filters.subcategory).maybeSingle();
-      if (data?.id) byIdQuery = byIdQuery.eq("subcategory_id", data.id);
+    if (!rankedRows || !Array.isArray(rankedRows) || rankedRows.length === 0) {
+      return { items: [], nextCursor: null, hasMore: false, totalCount: 0 };
     }
 
-    const { data, error } = await byIdQuery;
-    if (error) throw error;
+    const totalCount = Number(rankedRows[0]?.total_count ?? 0);
+    const productIds = rankedRows.map((r: any) => r.product_id);
 
-    const rankOrder = new Map(finalIds.map((id, i) => [id, i] as const));
-    const sorted = ((data ?? []) as unknown as ProductRow[]).sort(
-      (a, b) => (rankOrder.get(a.id) ?? 0) - (rankOrder.get(b.id) ?? 0),
+    const { data: products, error: pError } = await applyPublicFilters(
+      supabase.from("products").select(PRODUCT_FIELDS)
+    ).in("id", productIds);
+
+    if (pError) throw pError;
+
+    // Preserve exact server-side ranking order
+    const rankMap = new Map(productIds.map((id: string, idx: number) => [id, idx] as const));
+    const sorted = ((products ?? []) as unknown as ProductRow[]).sort(
+      (a, b) => (rankMap.get(a.id) ?? 0) - (rankMap.get(b.id) ?? 0)
     );
 
-    // Apply cursor slicing for search
-    const startIndex = cursor?.rank ?? 0;
-    const items = sorted.slice(startIndex, startIndex + limit);
-    const hasMore = sorted.length > startIndex + limit;
-    const nextCursor = hasMore ? { rank: startIndex + limit } : null;
+    const hasMore = offset + sorted.length < totalCount;
+    const nextCursor = hasMore ? { rank: offset + sorted.length } : null;
 
-    return { items, nextCursor, hasMore, totalCount: sorted.length };
+    return { items: sorted, nextCursor, hasMore, totalCount };
   }
 
   // 2. Intelligent Distribution & Cursor Pagination Path
@@ -322,28 +279,264 @@ export async function fetchProductBySlug(slug: string) {
   return data;
 }
 
+export type RelatedFallbackHierarchy = {
+  subcategoryId?: string | null;
+  categoryId?: string | null;
+  typeId?: string | null;
+};
+
+/**
+ * DETERMINISTIC RELATED PRODUCTS HIERARCHY
+ * 1. Explicit AI similar products
+ * 2. Same family
+ * 3. Same subcategory
+ * 4. Same category
+ * 5. Same product type
+ * Strictly excludes hidden, archived, unpublished, or deleted products.
+ */
 export async function fetchRelatedProducts(
   familyId: string | null,
   excludeId: string,
   similarIds?: string[] | null,
-) {
+  fallback?: RelatedFallbackHierarchy
+): Promise<ProductRow[]> {
+  // 1. Explicit AI similar products
   if (similarIds && similarIds.length) {
-    const { data, error } = await applyPublicFilters(
-      supabase.from("products").select(PRODUCT_FIELDS),
+    const { data } = await applyPublicFilters(
+      supabase.from("products").select(PRODUCT_FIELDS)
     )
       .in("id", similarIds)
       .neq("id", excludeId)
       .limit(8);
-    if (error) throw error;
-    if ((data ?? []).length) return (data ?? []) as unknown as ProductRow[];
+    if (data && data.length > 0) return data as unknown as ProductRow[];
   }
+
+  // 2. Same family
+  if (familyId) {
+    const { data } = await applyPublicFilters(
+      supabase.from("products").select(PRODUCT_FIELDS)
+    )
+      .eq("family_id", familyId)
+      .neq("id", excludeId)
+      .limit(8);
+    if (data && data.length > 0) return data as unknown as ProductRow[];
+  }
+
+  // 3. Same subcategory
+  if (fallback?.subcategoryId) {
+    const { data } = await applyPublicFilters(
+      supabase.from("products").select(PRODUCT_FIELDS)
+    )
+      .eq("subcategory_id", fallback.subcategoryId)
+      .neq("id", excludeId)
+      .limit(8);
+    if (data && data.length > 0) return data as unknown as ProductRow[];
+  }
+
+  // 4. Same category
+  if (fallback?.categoryId) {
+    const { data } = await applyPublicFilters(
+      supabase.from("products").select(PRODUCT_FIELDS)
+    )
+      .eq("category_id", fallback.categoryId)
+      .neq("id", excludeId)
+      .limit(8);
+    if (data && data.length > 0) return data as unknown as ProductRow[];
+  }
+
+  // 5. Same product type
+  if (fallback?.typeId) {
+    const { data } = await applyPublicFilters(
+      supabase.from("products").select(PRODUCT_FIELDS)
+    )
+      .eq("type_id", fallback.typeId)
+      .neq("id", excludeId)
+      .limit(8);
+    if (data && data.length > 0) return data as unknown as ProductRow[];
+  }
+
+  return [];
+}
+
+/**
+ * FAMILY GROUP SIBLING VARIANTS DISCOVERY
+ * Discovers variant products sharing the exact same design family (e.g. Virony White, Black, Grey)
+ */
+export async function fetchFamilyProducts(
+  familyId: string,
+  excludeId?: string
+): Promise<ProductRow[]> {
   if (!familyId) return [];
-  const { data, error } = await applyPublicFilters(
-    supabase.from("products").select(PRODUCT_FIELDS),
-  )
-    .eq("family_id", familyId)
-    .neq("id", excludeId)
-    .limit(8);
-  if (error) throw error;
+  let query = applyPublicFilters(
+    supabase.from("products").select(PRODUCT_FIELDS)
+  ).eq("family_id", familyId);
+
+  if (excludeId) {
+    query = query.neq("id", excludeId);
+  }
+
+  const { data, error } = await query.order("name", { ascending: true }).limit(16);
+  if (error) {
+    console.error("fetchFamilyProducts error:", error);
+    return [];
+  }
   return (data ?? []) as unknown as ProductRow[];
 }
+
+export type SearchFacetItem = {
+  name: string;
+  slug?: string;
+  count: number;
+};
+
+export type SearchFacets = {
+  types: SearchFacetItem[];
+  categories: SearchFacetItem[];
+  subcategories: SearchFacetItem[];
+  families: SearchFacetItem[];
+  brands: SearchFacetItem[];
+  materials: SearchFacetItem[];
+  finishes: SearchFacetItem[];
+  colors: SearchFacetItem[];
+};
+
+/**
+ * DYNAMIC FACETED DISCOVERY
+ * Retrieves live non-empty filter counts based on matching products
+ */
+export async function fetchSearchFacets(filters: {
+  q?: string;
+  type?: string;
+  category?: string;
+  subcategory?: string;
+}): Promise<SearchFacets> {
+  const { data, error } = await supabase.rpc("get_search_facets" as any, {
+    _q: filters.q?.trim() || null,
+    _type: filters.type || null,
+    _category: filters.category || null,
+    _subcategory: filters.subcategory || null,
+  } as any);
+
+  if (error || !data) {
+    return {
+      types: [],
+      categories: [],
+      subcategories: [],
+      families: [],
+      brands: [],
+      materials: [],
+      finishes: [],
+      colors: [],
+    };
+  }
+  return data as SearchFacets;
+}
+
+export type SearchSuggestionItem = {
+  suggestion: string;
+  type: "product" | "category" | "family" | "brand";
+  slug: string;
+};
+
+/**
+ * LIGHTWEIGHT REAL-TIME SEARCH SUGGESTIONS
+ * Fast prefix & full-text match across indexed product names, categories, and families
+ */
+export async function fetchSearchSuggestions(q: string): Promise<SearchSuggestionItem[]> {
+  if (!q || !q.trim()) return [];
+  const { data, error } = await supabase.rpc("get_search_suggestions" as any, {
+    _q: q.trim(),
+    _limit: 8,
+  } as any);
+
+  if (error || !data) return [];
+  return (data as any[]) || [];
+}
+
+/**
+ * SERVER-SIDE SEARCH ENGINE V2
+ * Deterministic multi-tier ranking hierarchy with server-side pagination and filters
+ */
+export async function searchProductsV2(params: {
+  q?: string;
+  type?: string;
+  category?: string;
+  subcategory?: string;
+  family?: string;
+  brand?: string;
+  material?: string;
+  finish?: string;
+  color?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ items: ProductRow[]; totalCount: number; hasMore: boolean }> {
+  const limit = params.limit ?? 24;
+  const offset = params.offset ?? 0;
+
+  const { data: rankedRows, error: rpcError } = await supabase.rpc("search_products_v2" as any, {
+    _q: params.q?.trim() || null,
+    _type: params.type || null,
+    _category: params.category || null,
+    _subcategory: params.subcategory || null,
+    _family: params.family || null,
+    _brand: params.brand || null,
+    _material: params.material || null,
+    _finish: params.finish || null,
+    _color: params.color || null,
+    _limit: limit,
+    _offset: offset,
+  } as any);
+
+  if (rpcError) {
+    console.error("searchProductsV2 RPC error:", rpcError);
+    return { items: [], totalCount: 0, hasMore: false };
+  }
+
+  if (!rankedRows || !Array.isArray(rankedRows) || rankedRows.length === 0) {
+    return { items: [], totalCount: 0, hasMore: false };
+  }
+
+  const totalCount = Number(rankedRows[0]?.total_count ?? 0);
+  const productIds = rankedRows.map((r: any) => r.product_id);
+
+  const { data: products, error: pError } = await applyPublicFilters(
+    supabase.from("products").select(PRODUCT_FIELDS)
+  ).in("id", productIds);
+
+  if (pError) throw pError;
+
+  // Preserve deterministic server ranking order
+  const rankMap = new Map(productIds.map((id: string, idx: number) => [id, idx] as const));
+  const sorted = ((products ?? []) as unknown as ProductRow[]).sort(
+    (a, b) => (rankMap.get(a.id) ?? 0) - (rankMap.get(b.id) ?? 0)
+  );
+
+  const hasMore = offset + sorted.length < totalCount;
+  return { items: sorted, totalCount, hasMore };
+}
+
+/**
+ * LIGHTWEIGHT SEARCH ANALYTICS LOGGER
+ * Privacy-friendly tracking for search optimization and zero-result queries
+ */
+export async function logSearchEvent(event: {
+  query: string;
+  resultCount: number;
+  selectedProductId?: string;
+  sessionId?: string;
+}) {
+  try {
+    const cleanQ = event.query.trim();
+    if (!cleanQ) return;
+    await supabase.from("search_analytics" as any).insert({
+      query: cleanQ,
+      normalized_query: cleanQ.toLowerCase(),
+      result_count: event.resultCount,
+      selected_product_id: event.selectedProductId || null,
+      session_id: event.sessionId || null,
+    } as any);
+  } catch {
+    // Non-blocking background analytics
+  }
+}
+

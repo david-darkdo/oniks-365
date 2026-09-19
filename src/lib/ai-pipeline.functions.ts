@@ -484,6 +484,8 @@ export const getDiscoveryHealthDetails = createServerFn({ method: "GET" })
     const { count: countFams } = await supabase.from("family_groups").select("*", { count: "exact", head: true });
 
     const { count: totalRedirects } = await supabase.from("redirects").select("*", { count: "exact", head: true });
+    const { count: totalSearches } = await supabase.from("search_analytics" as any).select("*", { count: "exact", head: true });
+    const { count: zeroResultSearches } = await supabase.from("search_analytics" as any).select("*", { count: "exact", head: true }).eq("results_count", 0);
 
     return {
       duplicateSlugsCount: duplicateSlugsCount || 0,
@@ -492,6 +494,8 @@ export const getDiscoveryHealthDetails = createServerFn({ method: "GET" })
       totalProducts: totalProducts || 0,
       totalSearchIndex: totalSearchIndex || 0,
       totalRedirects: totalRedirects || 0,
+      totalSearches: totalSearches || 0,
+      zeroResultSearches: zeroResultSearches || 0,
       taxonomy: {
         types: countTypes || 0,
         categories: countCats || 0,
@@ -506,17 +510,28 @@ export const rebuildAllSearchIndexes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const { data: products } = await supabase
-      .from("products")
-      .select("id")
-      .is("deleted_at", null);
+    try {
+      const { data, error } = await supabase.rpc("rebuild_entire_search_index" as any);
+      if (error) throw error;
+      const count = (data as any)?.rebuilt_count ?? 0;
+      const orphans = (data as any)?.cleaned_orphans ?? 0;
+      return { ok: true, count, orphans };
+    } catch (err: any) {
+      console.warn("rebuild_entire_search_index RPC fallback:", err?.message);
+      // Fallback iteration
+      const { data: products } = await supabase
+        .from("products")
+        .select("id")
+        .eq("status", "published")
+        .is("deleted_at", null);
 
-    if (products) {
-      for (const p of products) {
-        await supabase.rpc("rebuild_search_index" as any, { _product_id: p.id } as any);
+      if (products) {
+        for (const p of products) {
+          await supabase.rpc("rebuild_search_index" as any, { _product_id: p.id } as any);
+        }
       }
+      return { ok: true, count: products?.length || 0, orphans: 0 };
     }
-    return { ok: true, count: products?.length || 0 };
   });
 
 export const runSandboxStage = createServerFn({ method: "POST" })
