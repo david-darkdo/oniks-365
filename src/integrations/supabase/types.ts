@@ -1550,6 +1550,8 @@ export type Database = {
           color: string | null
           created_at: string
           deleted_at: string | null
+          differentiator_note: string | null
+          differentiator_type: string | null
           error_log: Json | null
           family_id: string | null
           faq: Json | null
@@ -1610,6 +1612,8 @@ export type Database = {
           color?: string | null
           created_at?: string
           deleted_at?: string | null
+          differentiator_note?: string | null
+          differentiator_type?: string | null
           error_log?: Json | null
           family_id?: string | null
           faq?: Json | null
@@ -1670,6 +1674,8 @@ export type Database = {
           color?: string | null
           created_at?: string
           deleted_at?: string | null
+          differentiator_note?: string | null
+          differentiator_type?: string | null
           error_log?: Json | null
           family_id?: string | null
           faq?: Json | null

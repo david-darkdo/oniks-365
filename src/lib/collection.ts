@@ -254,6 +254,26 @@ export async function ensureUserCollection(userId: string): Promise<string> {
   }
 }
 
+export async function getActiveUserDraftCollectionId(userId: string): Promise<string> {
+  if (!userId) return "";
+  try {
+    const { data: existing, error } = await supabase
+      .from("collections")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("is_locked", false)
+      .neq("status", "Submitted")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!error && existing?.id) return existing.id;
+  } catch (err) {
+    console.warn("Failed selecting existing draft collection:", err);
+  }
+  return "";
+}
+
 export async function getUserCollectionItems(userId: string) {
   const cacheKey = `${CACHED_ITEMS_KEY_PREFIX}${userId}`;
   const cached = getCachedUserCollectionItems(userId);
@@ -262,8 +282,11 @@ export async function getUserCollectionItems(userId: string) {
     return cached;
   }
 
-  const collection_id = await ensureUserCollection(userId);
-  if (!collection_id) return cached;
+  // Lazy draft: Only fetch existing active draft without creating a new empty one
+  const collection_id = cached.collection_id || (await getActiveUserDraftCollectionId(userId));
+  if (!collection_id) {
+    return { collection_id: "", items: cached.items || [] };
+  }
 
   const { data, error } = await supabase
     .from("collection_items")
@@ -299,7 +322,8 @@ export async function getBatchCollectionWorkspaceData(userId: string) {
   let colId = cached.collection_id;
 
   if (!colId) {
-    colId = await ensureUserCollection(userId);
+    // Lazy draft: lookup existing active draft without eagerly inserting a 0-item record
+    colId = await getActiveUserDraftCollectionId(userId);
   }
 
   const [profRes, itemsRes, colInfoRes] = await Promise.all([
@@ -377,7 +401,7 @@ export async function removeItemFromUserCollection(userId: string, product_id: s
   try {
     const cached = getCachedUserCollectionItems(userId);
     let collection_id = cached.collection_id || "";
-    if (!collection_id) collection_id = await ensureUserCollection(userId);
+    if (!collection_id) collection_id = await getActiveUserDraftCollectionId(userId);
     if (collection_id) {
       await supabase
         .from("collection_items")

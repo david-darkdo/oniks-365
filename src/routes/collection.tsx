@@ -289,8 +289,7 @@ function CollectionPage() {
     }
     const refNum = collectionData?.reference_number || generateCollectionReference(id || undefined);
     const versionStr = collectionData?.version && collectionData.version > 1 ? ` (v${collectionData.version})` : "";
-    const adminQuotationUrl = id ? `https://oniks365.ng/admin/collections/${id}` : `https://oniks365.ng/admin/collections`;
-    const customerCollectionUrl = id ? `https://oniks365.ng/collection/${id}` : `https://oniks365.ng/collection`;
+    const singleCollectionUrl = id ? `https://oniks365.ng/collection/${id}` : `https://oniks365.ng/collection`;
     const customerName = userProfile?.full_name || user?.user_metadata?.full_name || user?.email || "Valued Client";
     const projectName = collectionData?.project_name || collectionData?.name || "Showroom Project";
 
@@ -304,11 +303,8 @@ function CollectionPage() {
       `*Customer:* ${customerName}`,
       `*Project:* ${projectName}`,
       "",
-      `*Admin Quotation Review:*`,
-      `${adminQuotationUrl}`,
-      "",
-      `*Customer Collection:*`,
-      `${customerCollectionUrl}`,
+      `*Project Collection Link:*`,
+      `${singleCollectionUrl}`,
       "",
       `*SELECTED PRODUCTS (${activeItems.length}):*`
     ];
