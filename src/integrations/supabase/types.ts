@@ -2120,6 +2120,10 @@ export type Database = {
           rank: number
         }[]
       }
+      submit_collection_snapshot: {
+        Args: { _collection_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       account_status: "ACTIVE" | "SUSPENDED" | "BLOCKED"

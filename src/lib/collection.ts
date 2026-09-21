@@ -218,9 +218,10 @@ export async function ensureUserCollection(userId: string): Promise<string> {
   try {
     const { data: existing, error } = await supabase
       .from("collections")
-      .select("id, name, user_id, created_at, is_locked, status")
+      .select("id, name, user_id, created_at, is_locked, status, submitted_at")
       .eq("user_id", userId)
       .eq("is_locked", false)
+      .is("submitted_at", null)
       .neq("status", "Submitted")
       .order("created_at", { ascending: false })
       .limit(1)
@@ -262,6 +263,7 @@ export async function getActiveUserDraftCollectionId(userId: string): Promise<st
       .select("id")
       .eq("user_id", userId)
       .eq("is_locked", false)
+      .is("submitted_at", null)
       .neq("status", "Submitted")
       .order("created_at", { ascending: false })
       .limit(1)
@@ -326,28 +328,46 @@ export async function getBatchCollectionWorkspaceData(userId: string) {
     colId = await getActiveUserDraftCollectionId(userId);
   }
 
-  const [profRes, itemsRes, colInfoRes] = await Promise.all([
+  const [profRes, colInfoRes] = await Promise.all([
     supabase.from("profiles").select("*").eq("auth_id", userId).maybeSingle(),
-    colId
-      ? supabase
-          .from("collection_items")
-          .select("product_id, added_at, collection_id")
-          .eq("collection_id", colId)
-          .order("added_at", { ascending: false })
-      : Promise.resolve({ data: [] }),
     colId
       ? supabase.from("collections").select("*").eq("id", colId).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
+  let collectionData = colInfoRes.data ?? null;
+
+  // SAFETY CHECK: If cached collection is locked or submitted, it CANNOT be the active workspace!
+  if (collectionData && (collectionData.is_locked || collectionData.submitted_at || collectionData.status === "Submitted")) {
+    colId = await getActiveUserDraftCollectionId(userId);
+    if (colId) {
+      const { data: activeCol } = await supabase.from("collections").select("*").eq("id", colId).maybeSingle();
+      collectionData = activeCol;
+    } else {
+      collectionData = null;
+    }
+  }
+
+  const itemsRes = colId
+    ? await supabase
+        .from("collection_items")
+        .select("product_id, added_at, collection_id, quantity, unit, installation_location, delivery_preference, installation_required, project_notes")
+        .eq("collection_id", colId)
+        .order("added_at", { ascending: false })
+    : { data: [] };
+
   const dbItems = itemsRes.data ?? [];
   const mergedMap = new Map<string, any>();
   dbItems.forEach((i: any) => mergedMap.set(i.product_id, i));
-  (cached.items || []).forEach((i: any) => {
-    if (!mergedMap.has(i.product_id)) {
-      mergedMap.set(i.product_id, i);
-    }
-  });
+
+  // Only merge cached items if the cached collection ID matched the active one
+  if (cached.collection_id === colId) {
+    (cached.items || []).forEach((i: any) => {
+      if (!mergedMap.has(i.product_id)) {
+        mergedMap.set(i.product_id, i);
+      }
+    });
+  }
 
   const items = Array.from(mergedMap.values());
   const productIds = items.map((i: any) => i.product_id);
@@ -361,7 +381,7 @@ export async function getBatchCollectionWorkspaceData(userId: string) {
   return {
     profile: profRes.data ?? null,
     collectionId: colId,
-    collectionData: colInfoRes.data ?? null,
+    collectionData,
     items,
     products,
   };
@@ -401,7 +421,21 @@ export async function removeItemFromUserCollection(userId: string, product_id: s
   try {
     const cached = getCachedUserCollectionItems(userId);
     let collection_id = cached.collection_id || "";
-    if (!collection_id) collection_id = await getActiveUserDraftCollectionId(userId);
+    if (collection_id) {
+      // Guard against deleting from submitted snapshot
+      const { data: col } = await supabase
+        .from("collections")
+        .select("id, is_locked, submitted_at")
+        .eq("id", collection_id)
+        .maybeSingle();
+
+      if (col?.is_locked || col?.submitted_at) {
+        collection_id = await getActiveUserDraftCollectionId(userId);
+      }
+    } else {
+      collection_id = await getActiveUserDraftCollectionId(userId);
+    }
+
     if (collection_id) {
       await supabase
         .from("collection_items")
@@ -477,30 +511,45 @@ export async function fetchProductsByIds(ids: string[]) {
 }
 
 export async function lockAndSubmitCollection(collectionId: string, userId?: string): Promise<string> {
-  const refNum = generateCollectionReference(collectionId);
+  let refNum = generateCollectionReference(collectionId);
+  let newActiveId = "";
 
-  // 1. Lock and submit current collection in DB if available
-  if (collectionId) {
-    try {
+  try {
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc("submit_collection_snapshot", {
+      _collection_id: collectionId,
+    });
+
+    if (!rpcErr && rpcRes) {
+      const res = rpcRes as any;
+      refNum = res.reference_number || refNum;
+      newActiveId = res.new_active_collection_id || "";
+    } else {
+      console.error("RPC submit_collection_snapshot error, falling back to direct update:", rpcErr);
       await supabase
         .from("collections")
         .update({
           status: "Submitted",
           is_locked: true,
           submitted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          reference_number: refNum
         } as any)
         .eq("id", collectionId);
-    } catch {}
+    }
+  } catch (e) {
+    console.error("Exception during lockAndSubmitCollection:", e);
   }
 
-  // 2. Clear local active draft cache & user requirement maps to prepare clean new workspace
-  // An active collection will be created on-demand only when the customer resumes adding items.
+  // Clear local active draft cache & user requirement maps to prepare clean new workspace
   if (typeof window !== "undefined") {
     if (userId) {
       const cacheKey = `${CACHED_ITEMS_KEY_PREFIX}${userId}`;
       const reqKey = `${USER_REQ_KEY_PREFIX}${userId}`;
-      window.localStorage.removeItem(cacheKey);
+      if (newActiveId) {
+        window.localStorage.setItem(cacheKey, JSON.stringify({ collection_id: newActiveId, items: [] }));
+      } else {
+        window.localStorage.removeItem(cacheKey);
+      }
       window.localStorage.removeItem(reqKey);
     }
     setGuestCollection([]);
@@ -535,6 +584,7 @@ export async function getUserCollectionHistory(userId: string): Promise<any[]> {
       .from("collections")
       .select("*")
       .eq("user_id", userId)
+      .or("is_locked.eq.true,submitted_at.not.is.null")
       .order("created_at", { ascending: false });
 
     return cols || [];
