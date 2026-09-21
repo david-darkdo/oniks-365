@@ -11,22 +11,22 @@ import {
   Save, 
   User, 
   Calendar, 
-  Tag, 
   ShieldAlert, 
   Package, 
-  Building2, 
   Phone, 
   Mail, 
-  CheckCircle2 
+  Clock
 } from "lucide-react";
 import { publicImageUrl } from "@/components/ImageUploader";
 import { useAppSettings, waLink } from "@/lib/settings";
+import { generateCollectionReference } from "@/lib/collection";
+import { getCustomerIdentityKey, normalizePhone, normalizeEmail } from "@/lib/customer-identity";
 
 const STAGES = ["Draft", "Sent", "Viewed", "Quoted", "Negotiating", "Approved", "Completed", "Cancelled"] as const;
 type Stage = (typeof STAGES)[number];
 
 export const Route = createFileRoute("/_authenticated/admin/collections/$id")({
-  head: () => ({ meta: [{ title: "Quotation Inquiry Details — Admin" }] }),
+  head: () => ({ meta: [{ title: "Customer Quotation Workspace — Admin" }] }),
   beforeLoad: async ({ location, params }) => {
     // 1. Verify authentication
     const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -37,27 +37,28 @@ export const Route = createFileRoute("/_authenticated/admin/collections/$id")({
       });
     }
 
-    // 2. Real server-side/database authorization check via user_roles
-    const { data: roleRow, error: roleError } = await supabase
+    // 2. Real server-side authorization check (handles multiple role rows without .maybeSingle failure)
+    const { data: roleRows, error: roleError } = await supabase
       .from("user_roles")
       .select("role")
-      .eq("user_id", authData.user.id)
-      .maybeSingle();
+      .eq("user_id", authData.user.id);
 
-    const role = roleRow?.role;
-    const isAuthorized = role === "admin" || role === "super_admin";
+    const isAuthorized = (roleRows || []).some(
+      (r) => r.role === "admin" || r.role === "super_admin"
+    );
+
     if (roleError || !isAuthorized) {
       throw redirect({
         to: "/admin",
       });
     }
 
-    return { user: authData.user, role };
+    return { user: authData.user };
   },
-  component: AdminQuotationDetailPage,
+  component: AdminCustomerWorkspacePage,
 });
 
-function AdminQuotationDetailPage() {
+function AdminCustomerWorkspacePage() {
   const { id } = useParams({ from: "/_authenticated/admin/collections/$id" });
   const { isAdmin, loading: authLoading } = useAuth();
   const { data: settings } = useAppSettings();
@@ -66,18 +67,16 @@ function AdminQuotationDetailPage() {
   const [items, setItems] = useState<any[]>([]);
   const [profile, setProfile] = useState<any>(null);
   const [inquiry, setInquiry] = useState<any>(null);
-  const [historyCollections, setHistoryCollections] = useState<any[]>([]);
-  const [admins, setAdmins] = useState<Array<{ id: string; full_name: string | null; email: string | null; auth_id: string }>>([]);
+  const [customerHistory, setCustomerHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingNotes, setSavingNotes] = useState(false);
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<Stage>("Draft");
-  const [assignedAdminId, setAssignedAdminId] = useState<string>("");
 
   const loadData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch collection record
+      // 1. Fetch current collection record
       const { data: coll, error: collErr } = await supabase
         .from("collections")
         .select("*")
@@ -92,15 +91,7 @@ function AdminQuotationDetailPage() {
       setCollection(coll);
       setNotes(coll.internal_notes || "");
 
-      // Resolve existing status
-      let currentStage: Stage = "Draft";
-      if (coll.status && STAGES.includes(coll.status as any)) {
-        currentStage = coll.status as Stage;
-      } else if (coll.whatsapp_sent || (coll.inquiry_status as string) === "SENT") {
-        currentStage = "Sent";
-      } else if (coll.inquiry_status && STAGES.includes(coll.inquiry_status as any)) {
-        currentStage = coll.inquiry_status as Stage;
-      }
+      const currentStage = (coll.status && STAGES.includes(coll.status as any) ? coll.status : "Draft") as Stage;
       setStatus(currentStage);
 
       // 2. Fetch collection items with full product details
@@ -127,34 +118,21 @@ function AdminQuotationDetailPage() {
       }
       setItems(rawItems || []);
 
-      // 3. Fetch collection history for this customer
-      if (coll.user_id) {
-        const { data: hist } = await supabase
-          .from("collections")
-          .select("id, name, project_name, reference_number, version, status, is_locked, created_at, submitted_at, parent_collection_id")
-          .eq("user_id", coll.user_id)
-          .order("created_at", { ascending: false });
-        setHistoryCollections(hist || []);
-      } else if (coll.parent_collection_id) {
-        const { data: hist } = await supabase
-          .from("collections")
-          .select("id, name, project_name, reference_number, version, status, is_locked, created_at, submitted_at, parent_collection_id")
-          .or(`id.eq.${coll.parent_collection_id},parent_collection_id.eq.${coll.parent_collection_id}`)
-          .order("created_at", { ascending: false });
-        setHistoryCollections(hist || []);
-      }
-
-      // 4. Fetch customer profile if user_id present
+      // 3. Fetch customer profile if user_id present
+      let loadedProfile: any = null;
       if (coll.user_id) {
         const { data: prof } = await supabase
           .from("profiles")
           .select("*")
           .eq("auth_id", coll.user_id)
           .maybeSingle();
-        if (prof) setProfile(prof);
+        if (prof) {
+          loadedProfile = prof;
+          setProfile(prof);
+        }
       }
 
-      // 5. Fetch linked whatsapp inquiry
+      // 4. Fetch linked whatsapp inquiry
       const { data: inq } = await supabase
         .from("whatsapp_inquiries")
         .select("*")
@@ -162,22 +140,43 @@ function AdminQuotationDetailPage() {
         .maybeSingle();
       if (inq) {
         setInquiry(inq);
-        setAssignedAdminId(inq.assigned_admin_id || "");
       }
 
-      // 5. Fetch admins list for assignment
-      const { data: roleRows } = await supabase
-        .from("user_roles")
-        .select("user_id, role")
-        .or("role.eq.admin,role.eq.super_admin");
-      
-      if (roleRows && roleRows.length > 0) {
-        const adminAuthIds = roleRows.map((r: any) => r.user_id);
-        const { data: adminProfs } = await supabase
-          .from("profiles")
-          .select("id, auth_id, full_name, email")
-          .in("auth_id", adminAuthIds);
-        setAdmins(adminProfs as any || []);
+      // 5. PHASE 5: Fetch complete request history for this customer (Consistent Identity Resolver)
+      if (coll.user_id) {
+        const { data: hist } = await supabase
+          .from("collections")
+          .select("id, name, project_name, reference_number, version, status, is_locked, created_at, submitted_at, parent_collection_id")
+          .eq("user_id", coll.user_id)
+          .order("created_at", { ascending: false });
+        setCustomerHistory(hist || []);
+      } else {
+        // Guest customer identity resolution
+        const phone = normalizePhone(inq?.customer_phone || inq?.whatsapp_number);
+        const email = normalizeEmail(inq?.customer_email);
+
+        if (phone || email) {
+          // Fetch inquiries matching this phone/email
+          const filter = phone ? `customer_phone.eq.${phone}` : `customer_email.eq.${email}`;
+          const { data: matchingInqs } = await supabase
+            .from("whatsapp_inquiries")
+            .select("collection_id")
+            .or(filter);
+
+          const matchingColIds = Array.from(new Set((matchingInqs || []).map((i: any) => i.collection_id).filter(Boolean)));
+          if (matchingColIds.length > 0) {
+            const { data: hist } = await supabase
+              .from("collections")
+              .select("id, name, project_name, reference_number, version, status, is_locked, created_at, submitted_at, parent_collection_id")
+              .in("id", matchingColIds)
+              .order("created_at", { ascending: false });
+            setCustomerHistory(hist || [coll]);
+          } else {
+            setCustomerHistory([coll]);
+          }
+        } else {
+          setCustomerHistory([coll]);
+        }
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to load quotation data");
@@ -190,52 +189,24 @@ function AdminQuotationDetailPage() {
     void loadData();
   }, [id]);
 
+  // Mandatory Atomic Pipeline Status Mutation with strict error inspection
   const handleSaveStatus = async (newStage: Stage) => {
-    setStatus(newStage);
-    try {
-      await supabase
-        .from("collections")
-        .update({ status: newStage, inquiry_status: newStage as any })
-        .eq("id", id);
+    const { data, error } = await supabase.rpc("update_quotation_pipeline_stage", {
+      _collection_id: id,
+      _new_stage: newStage,
+    });
 
-      if (inquiry?.id) {
-        await supabase
-          .from("whatsapp_inquiries")
-          .update({ inquiry_status: newStage as any })
-          .eq("id", inquiry.id);
-      }
-      toast.success(`Quotation status updated to ${newStage}`);
-    } catch (e: any) {
-      toast.error("Failed to update status: " + e.message);
-    }
-  };
-
-  const handleAssignAdmin = async (newAdminId: string) => {
-    setAssignedAdminId(newAdminId);
-    if (!inquiry?.id) {
-      // Create whatsapp inquiry if not existing to preserve assignment
-      const { data: newInq } = await supabase.from("whatsapp_inquiries").insert({
-        collection_id: id,
-        assigned_admin_id: newAdminId || null,
-        inquiry_status: status as any,
-        customer_name: profile?.full_name || (collection as any)?.customer_name || "Valued Customer",
-        customer_phone: profile?.phone_number || (collection as any)?.customer_phone || "",
-      }).select().single();
-      if (newInq) setInquiry(newInq);
-      toast.success("Assigned administrator to quotation");
+    if (error) {
+      toast.error(`Failed to update status: ${error.message}`);
       return;
     }
-    const { error } = await supabase
-      .from("whatsapp_inquiries")
-      .update({ assigned_admin_id: newAdminId || null })
-      .eq("id", inquiry.id);
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Assigned administrator to quotation");
-    }
+
+    setStatus(newStage);
+    toast.success(`Quotation status updated to ${newStage}`);
+    void loadData();
   };
 
+  // Internal Notes save with explicit error inspection
   const handleSaveNotes = async () => {
     setSavingNotes(true);
     try {
@@ -243,7 +214,11 @@ function AdminQuotationDetailPage() {
         .from("collections")
         .update({ internal_notes: notes.trim() || null })
         .eq("id", id);
-      if (error) throw error;
+
+      if (error) {
+        toast.error(`Failed to save notes: ${error.message}`);
+        return;
+      }
       toast.success("Internal admin notes saved");
     } catch (e: any) {
       toast.error(e.message || "Failed to save notes");
@@ -281,23 +256,29 @@ function AdminQuotationDetailPage() {
             You do not have administrative permissions to inspect this customer quotation request.
           </p>
           <Link
-            to="/collection/$id"
-            params={{ id }}
+            to="/admin/collections"
             className="inline-block rounded-lg bg-primary px-5 py-2 text-xs font-bold uppercase tracking-wider text-primary-foreground hover:bg-primary/90 transition"
           >
-            View as Public Visitor
+            Return to Command Center
           </Link>
         </div>
       </div>
     );
   }
 
-  // Compose WhatsApp quotation response
-  const customerPhone = profile?.phone_number || collection?.customer_phone || "";
+  const customerName = profile?.full_name || inquiry?.customer_name || collection?.customer_name || "Valued Customer";
+  const customerEmail = profile?.email || inquiry?.customer_email || collection?.customer_email || "Not provided";
+  const customerPhone = inquiry?.customer_phone || inquiry?.whatsapp_number || profile?.phone_number || collection?.customer_phone || "";
   const targetWaNumber = customerPhone || settings?.sales_whatsapp || "";
+
+  // Single smart link referenced in WhatsApp quotation response
+  const smartCollectionUrl = `https://oniks365.ng/collection/${id}`;
+  const refNum = collection?.reference_number || generateCollectionReference(id);
+
   const quotationSummaryText = [
     `*ONIKS 365 — Quotation Resolution*`,
-    `Ref: ${collection?.reference_number || collection?.name || "Inquiry"}`,
+    `Ref: ${refNum}`,
+    `Customer: ${customerName}`,
     `Project: ${collection?.project_name || collection?.name || "Showroom Selection"}`,
     ``,
     `*Selected Items Breakdown:*`,
@@ -310,9 +291,9 @@ function AdminQuotationDetailPage() {
     }),
     ``,
     `*Total Estimated Value: ₦${totalEstimate.toLocaleString()}*`,
-    `Review Link: https://oniks365.ng/collection/${id}`,
+    `Project Review Link: ${smartCollectionUrl}`,
     ``,
-    `Our procurement engineers have reviewed your project requirements and are prepared to process fulfillment.`
+    `Our procurement engineers have reviewed your project specifications and are prepared to process fulfillment.`
   ].join("\n");
 
   return (
@@ -324,17 +305,15 @@ function AdminQuotationDetailPage() {
             to="/admin/collections"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground mb-1.5 transition"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Quotation Pipeline
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to Customer CRM Pipeline
           </Link>
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-foreground">
-              {collection?.name || "Quotation Request"}
+              {customerName}
             </h1>
-            {collection?.reference_number && (
-              <span className="rounded-md bg-muted px-2.5 py-0.5 font-mono text-xs font-bold text-foreground border border-border">
-                {collection.reference_number}
-              </span>
-            )}
+            <span className="rounded-md bg-muted px-2.5 py-0.5 font-mono text-xs font-bold text-foreground border border-border">
+              {refNum}
+            </span>
             {collection?.version && collection.version > 1 && (
               <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary border border-primary/20">
                 v{collection.version}
@@ -342,7 +321,7 @@ function AdminQuotationDetailPage() {
             )}
             {collection?.is_locked && (
               <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-500 border border-amber-500/20">
-                <Lock className="h-3 w-3" /> Submitted & Locked
+                <Lock className="h-3 w-3" /> Submitted & Locked Snapshot
               </span>
             )}
           </div>
@@ -353,15 +332,6 @@ function AdminQuotationDetailPage() {
 
         {/* Right CTA Actions */}
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            to="/collection/$id"
-            params={{ id }}
-            target="_blank"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-semibold hover:bg-muted transition"
-          >
-            <ExternalLink className="h-3.5 w-3.5" /> View Public Customer Page
-          </Link>
-
           {targetWaNumber && (
             <a
               href={waLink(targetWaNumber, quotationSummaryText)}
@@ -377,31 +347,25 @@ function AdminQuotationDetailPage() {
 
       {/* Grid: Information Summary (Left) & Pipeline Resolution Controls (Right) */}
       <div className="grid gap-6 md:grid-cols-3">
-        {/* Left 2 Cols: Customer Info & Selected Products List */}
+        {/* Left 2 Cols: Customer Identity & Selected Products Detailed Table */}
         <div className="md:col-span-2 space-y-6">
           {/* Customer & Project Identity Card */}
           <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-3">
             <h3 className="font-display text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 border-b border-border/60 pb-2">
-              <User className="h-3.5 w-3.5 text-primary" /> Customer & Project Identity
+              <User className="h-3.5 w-3.5 text-primary" /> Customer Identity & Contact Information
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
               <div>
                 <span className="text-[10px] uppercase font-bold text-muted-foreground block">Customer Name</span>
-                <span className="font-semibold text-foreground">
-                  {profile?.full_name || collection?.customer_name || "Guest Customer"}
-                </span>
+                <span className="font-semibold text-foreground">{customerName}</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-muted-foreground block">Email Address</span>
-                <span className="font-semibold text-foreground break-all">
-                  {profile?.email || collection?.customer_email || "Not provided"}
-                </span>
+                <span className="font-semibold text-foreground break-all">{customerEmail}</span>
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-muted-foreground block">Phone Number</span>
-                <span className="font-semibold text-foreground">
-                  {profile?.phone_number || collection?.customer_phone || "Not provided"}
-                </span>
+                <span className="font-semibold text-foreground">{customerPhone || "Not provided"}</span>
               </div>
               {collection?.project_name && (
                 <div className="sm:col-span-3 pt-2 border-t border-border/40">
@@ -442,7 +406,7 @@ function AdminQuotationDetailPage() {
                       className="rounded-xl border border-border/70 bg-background p-3.5 text-xs shadow-xs space-y-2.5 transition hover:border-primary/40"
                     >
                       <div className="flex items-start gap-3">
-                        {/* Product Thumbnail */}
+                        {/* Mandatory Product Image */}
                         <div className="h-16 w-16 rounded-lg overflow-hidden border border-border bg-muted shrink-0 flex items-center justify-center">
                           {img ? (
                             <img src={img} alt={p?.name || "Product"} className="h-full w-full object-cover" />
@@ -523,9 +487,9 @@ function AdminQuotationDetailPage() {
           </div>
         </div>
 
-        {/* Right 1 Col: Quotation Pipeline Resolution Controls */}
+        {/* Right 1 Col: Quotation Pipeline Resolution & Customer Request History */}
         <div className="space-y-6">
-          {/* Status & Assignment Box */}
+          {/* Status Controls Box (Assigned Officer REMOVED) */}
           <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-4">
             <h3 className="font-display text-xs font-bold uppercase tracking-wider text-muted-foreground border-b border-border/60 pb-2">
               Quotation Pipeline Controls
@@ -547,25 +511,6 @@ function AdminQuotationDetailPage() {
               </select>
             </div>
 
-            {/* Assigned Admin Selector */}
-            <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
-                Assigned Administrator
-              </label>
-              <select
-                value={assignedAdminId}
-                onChange={(e) => void handleAssignAdmin(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background p-2 text-xs text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
-              >
-                <option value="">Unassigned</option>
-                {admins.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.full_name || a.email}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* Total Quotation Summary */}
             <div className="rounded-lg bg-muted/40 p-3 border border-border/50 space-y-1">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
@@ -575,7 +520,7 @@ function AdminQuotationDetailPage() {
                 ₦{totalEstimate.toLocaleString()}
               </div>
               <p className="text-[10px] text-muted-foreground">
-                Derived from {items.length} line item{items.length === 1 ? "" : "s"} at authoritative catalog prices.
+                Derived from {items.length} line item{items.length === 1 ? "" : "s"} at catalog prices.
               </p>
             </div>
           </div>
@@ -607,21 +552,22 @@ function AdminQuotationDetailPage() {
             </p>
           </div>
 
-          {/* Customer Collection History & Snapshots */}
+          {/* PHASE 5: Customer Request History (Consolidated & Consistent) */}
           <div className="rounded-xl border border-border bg-card p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between border-b border-border/60 pb-2">
               <h3 className="font-display text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-primary" /> Customer Request History ({historyCollections.length})
+                <Clock className="h-3.5 w-3.5 text-primary" /> Customer Request History ({customerHistory.length})
               </h3>
             </div>
-            {historyCollections.length > 0 ? (
+            {customerHistory.length > 0 ? (
               <div className="space-y-2.5 max-h-72 overflow-y-auto">
-                {historyCollections.map((hist) => {
+                {customerHistory.map((hist) => {
                   const isCurrent = hist.id === id;
                   const histDate = hist.submitted_at || hist.created_at;
                   const formattedHistDate = histDate 
                     ? new Date(histDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
                     : "Recent";
+                  const histRef = hist.reference_number || generateCollectionReference(hist.id);
 
                   return (
                     <div 
@@ -649,7 +595,7 @@ function AdminQuotationDetailPage() {
                       </div>
 
                       <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                        <span>{formattedHistDate}</span>
+                        <span>{histRef} • {formattedHistDate}</span>
                         {isCurrent ? (
                           <span className="font-bold text-primary text-[10px]">● Active Snapshot</span>
                         ) : (

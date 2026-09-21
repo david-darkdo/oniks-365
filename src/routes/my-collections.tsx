@@ -6,20 +6,38 @@ import {
   getUserCollectionHistory,
   fetchProductsByIds,
   duplicateCollection,
-  detectProductUnit
+  detectProductUnit,
+  generateCollectionReference
 } from "@/lib/collection";
 import { toast } from "sonner";
-import { FileText, RefreshCw, Lock, Calendar, Layers, ArrowLeft, ChevronDown, ChevronUp, Plus, ExternalLink } from "lucide-react";
+import { 
+  FileText, 
+  RefreshCw, 
+  Lock, 
+  Calendar, 
+  Layers, 
+  ArrowLeft, 
+  ChevronDown, 
+  ChevronUp, 
+  Plus, 
+  ExternalLink,
+  CheckCircle2
+} from "lucide-react";
 import { publicImageUrl } from "@/components/ImageUploader";
 
 export const Route = createFileRoute("/my-collections")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    collection: (search.collection as string) || undefined,
+  }),
   head: () => ({ meta: [{ title: "My Collection History — ONIKS365" }] }),
   component: MyCollectionsHistoryPage,
 });
 
 function MyCollectionsHistoryPage() {
   const { user, loading } = useAuth();
+  const { collection: highlightedCollectionId } = Route.useSearch();
   const navigate = useNavigate();
+
   const [historyCollections, setHistoryCollections] = useState<any[]>([]);
   const [collectionItemsMap, setCollectionItemsMap] = useState<Record<string, any[]>>({});
   const [productsMap, setProductsMap] = useState<Record<string, any[]>>({});
@@ -74,12 +92,23 @@ function MyCollectionsHistoryPage() {
         });
 
         setProductsMap(colProdsMap);
+
+        // Section 21: Auto-expand and scroll to selected collection if deep-linked via Smart URL
+        if (highlightedCollectionId && cols.some((c: any) => c.id === highlightedCollectionId)) {
+          setExpandedMap((prev) => ({ ...prev, [highlightedCollectionId]: true }));
+          setTimeout(() => {
+            const el = document.getElementById(`col-${highlightedCollectionId}`);
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+          }, 150);
+        }
       }
       setBusy(false);
     };
 
     if (!loading) void load();
-  }, [user, loading]);
+  }, [user, loading, highlightedCollectionId]);
 
   const toggleExpand = (colId: string) => {
     setExpandedMap((prev) => ({
@@ -111,8 +140,14 @@ function MyCollectionsHistoryPage() {
       <div className="container-app py-10 max-w-md text-center space-y-4">
         <FileText className="h-10 w-10 text-muted-foreground/40 mx-auto" />
         <h2 className="font-display text-xl font-semibold">Sign in to view Collection History</h2>
-        <p className="text-xs text-muted-foreground">Your submitted project quotation requests are saved to your account history as permanent immutable records.</p>
-        <Link to="/auth" search={{ redirectTo: "/my-collections" }} className="inline-block rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+        <p className="text-xs text-muted-foreground">
+          Your submitted project quotation requests are saved to your account history as permanent immutable records.
+        </p>
+        <Link 
+          to="/auth" 
+          search={{ redirectTo: highlightedCollectionId ? `/collection/${highlightedCollectionId}` : "/my-collections" }} 
+          className="inline-block rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
           Sign In
         </Link>
       </div>
@@ -121,6 +156,7 @@ function MyCollectionsHistoryPage() {
 
   return (
     <div className="container-app py-6 space-y-6">
+      {/* Top Header & Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div>
           <div className="flex items-center gap-2">
@@ -140,7 +176,10 @@ function MyCollectionsHistoryPage() {
           >
             <Plus className="h-3.5 w-3.5" /> Continue Building Collection
           </Link>
-          <Link to="/collection" className="inline-flex items-center gap-2 rounded-lg bg-[#0F1115] border border-[#C5A059]/40 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#1A1D24] hover:text-[#D4AF37] transition shrink-0 shadow-md">
+          <Link 
+            to="/collection" 
+            className="inline-flex items-center gap-2 rounded-lg bg-[#0F1115] border border-[#C5A059]/40 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#1A1D24] hover:text-[#D4AF37] transition shrink-0 shadow-md"
+          >
             <Layers className="h-4 w-4 text-[#D4AF37]" /> Go to Active Workspace
           </Link>
         </div>
@@ -168,56 +207,62 @@ function MyCollectionsHistoryPage() {
             const prods = productsMap[col.id] || [];
             const isDuplicating = duplicatingId === col.id;
             const isExpanded = Boolean(expandedMap[col.id]);
+            const isTargeted = col.id === highlightedCollectionId;
+            const refNum = col.reference_number || generateCollectionReference(col.id);
+
             let totalVal = 0;
             prods.forEach((p) => { totalVal += Number(p.price || 0) * Number(p.quantity || 1); });
 
             return (
-              <div key={col.id} className="rounded-xl border border-border bg-card overflow-hidden shadow-sm hover:border-primary/40 transition">
+              <div 
+                key={col.id} 
+                id={`col-${col.id}`}
+                className={`rounded-xl border overflow-hidden shadow-xs transition ${
+                  isTargeted 
+                    ? "border-primary ring-2 ring-primary/30 bg-primary/5 shadow-md" 
+                    : "border-border bg-card hover:border-primary/40"
+                }`}
+              >
                 {/* Header Collapsed Card Row */}
                 <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="font-display text-base font-semibold">{col.project_name || col.name || "Project Request"}</h3>
-                      {col.reference_number && (
-                        <span className="rounded-md bg-surface-2 text-foreground text-xs font-mono font-bold px-2.5 py-0.5 border border-border">
-                          {col.reference_number}
-                        </span>
-                      )}
+                      <span className="rounded-md bg-surface-2 text-foreground text-xs font-mono font-bold px-2.5 py-0.5 border border-border">
+                        {refNum}
+                      </span>
                       {col.version && col.version > 1 && (
-                        <span className="rounded-full bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 border border-primary/20">
+                        <span className="rounded-full bg-primary/10 text-primary text-xs font-semibold px-2.5 py-0.5 border border-primary/20">
                           v{col.version}
                         </span>
                       )}
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-medium px-2 py-0.5 border border-amber-500/20">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs font-medium px-2.5 py-0.5 border border-amber-500/20">
                         <Lock className="h-3 w-3" /> Immutable Record
                       </span>
+                      {isTargeted && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 text-primary text-xs font-bold px-2.5 py-0.5 border border-primary/30">
+                          <CheckCircle2 className="h-3 w-3" /> Selected Request
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3.5 w-3.5" />
                         Submitted on {new Date(col.submitted_at || col.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                       </span>
-                      <span>• {prods.length} Products</span>
+                      <span>• {prods.length} Product{prods.length === 1 ? "" : "s"}</span>
                       <span>• Est. Total: <strong className="text-foreground">₦{totalVal.toLocaleString()}</strong></span>
-                      <span>• Status: <strong className="text-foreground">{col.status || "Submitted"}</strong></span>
+                      <span>• Status: <strong className="text-foreground uppercase">{col.status || "Submitted"}</strong></span>
                     </div>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    <Link
-                      to="/collection/$id"
-                      params={{ id: col.id }}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline px-3 py-2 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 transition"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" /> View Record
-                    </Link>
-
                     <button
                       onClick={() => toggleExpand(col.id)}
                       className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground px-3 py-2 rounded-lg border border-border bg-background hover:bg-surface-2 transition"
                     >
                       {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      <span>{isExpanded ? "Hide" : `Products (${prods.length})`}</span>
+                      <span>{isExpanded ? "Hide Details" : `Inspect Products (${prods.length})`}</span>
                     </button>
 
                     {/* Create Updated Request (v+1) Action Button */}
@@ -249,6 +294,7 @@ function MyCollectionsHistoryPage() {
                             <p className="text-muted-foreground">Code: {p.code} — <strong className="text-primary">{p.quantity} {p.unit}</strong></p>
                             {p.location && <p className="text-muted-foreground/80 truncate">Loc: {p.location}</p>}
                             {p.delivery && <p className="text-muted-foreground/80 truncate">Delivery: {p.delivery}</p>}
+                            {p.installation && <p className="text-muted-foreground/80 truncate">Install: {p.installation}</p>}
                             {p.notes && <p className="text-muted-foreground/80 italic truncate">Notes: {p.notes}</p>}
                           </div>
                         </div>

@@ -3,309 +3,353 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
-import { ExternalLink, MessageCircle, User as UserIcon, Copy, Lock, RefreshCw, FileText } from "lucide-react";
+import { 
+  FileText, 
+  User as UserIcon, 
+  Calendar, 
+  Mail, 
+  Phone, 
+  CheckCircle2, 
+  X, 
+  ArrowRight,
+  Package,
+  Clock
+} from "lucide-react";
+import { groupCollectionsByCustomer, CustomerGroup } from "@/lib/customer-identity";
 
 export const Route = createFileRoute("/_authenticated/admin/collections")({
-  head: () => ({ meta: [{ title: "Collection CRM & Quotation Requests — Admin" }] }),
+  head: () => ({ meta: [{ title: "Customer Collection CRM & Quotation Requests — Admin" }] }),
   component: CollectionsCrmPage,
 });
 
 const STAGES = ["Draft", "Sent", "Viewed", "Quoted", "Negotiating", "Approved", "Completed", "Cancelled"] as const;
 type Stage = (typeof STAGES)[number];
 
-type Row = {
-  id: string;
-  user_id: string;
-  name: string;
-  reference_number: string | null;
-  project_name: string | null;
-  customer_name: string | null;
-  customer_email: string | null;
-  customer_phone: string | null;
-  customer_profile_id: string | null;
-  products_count: number;
-  created_at: string;
-  submitted_at: string | null;
-  display_date: string;
-  whatsapp_sent: boolean;
-  is_locked: boolean;
-  version: number;
-  parent_collection_id: string | null;
-  status: Stage;
-  assigned_admin_id: string | null;
-  internal_notes: string | null;
-  inquiry_id: string | null;
-  history_count: number;
-};
-
 function CollectionsCrmPage() {
   const { isAdmin, loading } = useAuth();
-  const [rows, setRows] = useState<Row[]>([]);
-  const [admins, setAdmins] = useState<Array<{ id: string; full_name: string | null; email: string | null; auth_id: string }>>([]);
+  const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>([]);
   const [busy, setBusy] = useState(true);
   const [filter, setFilter] = useState<string>("all");
-  const [selectedRow, setSelectedRow] = useState<Row | null>(null);
-  const [selectedItems, setSelectedItems] = useState<any[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerGroup | null>(null);
 
   const load = async () => {
     setBusy(true);
-    const [{ data: colls }, { data: items }, { data: profs }, { data: inqs }, { data: roleRows }] = await Promise.all([
+    const [{ data: colls }, { data: items }, { data: profs }, { data: inqs }] = await Promise.all([
       supabase.from("collections").select("*").order("created_at", { ascending: false }),
-      supabase.from("collection_items").select("*"),
-      supabase.from("profiles").select("id,auth_id,full_name,email,phone_number"),
-      supabase.from("whatsapp_inquiries").select("id,collection_id,assigned_admin_id,inquiry_status,customer_name,customer_phone"),
-      supabase.from("user_roles").select("user_id,role"),
+      supabase.from("collection_items").select("id, collection_id"),
+      supabase.from("profiles").select("id, auth_id, full_name, email, created_at"),
+      supabase.from("whatsapp_inquiries").select("id, collection_id, customer_name, customer_phone, customer_email, whatsapp_number, inquiry_status, status"),
     ]);
-    const profByAuth = new Map((profs ?? []).map((p: any) => [p.auth_id, p]));
+
     const itemCount = new Map<string, number>();
-    (items ?? []).forEach((i: any) => itemCount.set(i.collection_id, (itemCount.get(i.collection_id) ?? 0) + 1));
-    const inqByColl = new Map<string, any>();
-    (inqs ?? []).forEach((i: any) => inqByColl.set(i.collection_id, i));
-
-    const adminIds = new Set((roleRows ?? []).filter((r: any) => r.role === "admin" || r.role === "super_admin").map((r: any) => r.user_id));
-    const adminList = (profs ?? []).filter((p: any) => adminIds.has(p.auth_id));
-    setAdmins(adminList as any);
-
-    // Group collections by Customer so each customer is ONE workspace in the pipeline
-    const groupsByCustomer = new Map<string, any[]>();
-    (colls ?? []).forEach((c: any) => {
-      const key = c.user_id || c.id;
-      if (!groupsByCustomer.has(key)) groupsByCustomer.set(key, []);
-      groupsByCustomer.get(key)!.push(c);
+    (items ?? []).forEach((i: any) => {
+      itemCount.set(i.collection_id, (itemCount.get(i.collection_id) ?? 0) + 1);
     });
 
-    const out: Row[] = Array.from(groupsByCustomer.values()).map((customerColls) => {
-      // Sort to prioritize latest submitted request, then newest created
-      customerColls.sort((a, b) => {
-        const timeA = new Date(a.submitted_at || a.created_at).getTime();
-        const timeB = new Date(b.submitted_at || b.created_at).getTime();
-        return timeB - timeA;
-      });
-
-      const active = customerColls[0];
-      const p = profByAuth.get(active.user_id) as any;
-      const inq = inqByColl.get(active.id);
-      
-      let rawStatus: Stage = "Draft";
-      if (active.status && STAGES.includes(active.status as any)) {
-        rawStatus = active.status as Stage;
-      } else if (active.whatsapp_sent || active.inquiry_status === "SENT") {
-        rawStatus = "Sent";
-      } else if (active.inquiry_status && STAGES.includes(active.inquiry_status as any)) {
-        rawStatus = active.inquiry_status as Stage;
-      }
-
-      const dateVal = active.submitted_at || active.created_at;
-      const displayDate = dateVal 
-        ? new Date(dateVal).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-        : "Recent";
-
-      return {
-        id: active.id,
-        user_id: active.user_id,
-        name: active.name || "Collection",
-        reference_number: active.reference_number || null,
-        project_name: active.project_name || null,
-        customer_name: p?.full_name || inq?.customer_name || null,
-        customer_email: p?.email ?? null,
-        customer_phone: p?.phone_number || inq?.customer_phone || null,
-        customer_profile_id: p?.id ?? null,
-        products_count: itemCount.get(active.id) ?? 0,
-        created_at: active.created_at,
-        submitted_at: active.submitted_at || null,
-        display_date: displayDate,
-        whatsapp_sent: !!active.whatsapp_sent,
-        is_locked: active.is_locked ?? Boolean(active.whatsapp_sent),
-        version: active.version || 1,
-        parent_collection_id: active.parent_collection_id || null,
-        status: rawStatus,
-        assigned_admin_id: inq?.assigned_admin_id ?? null,
-        internal_notes: active.internal_notes ?? null,
-        inquiry_id: inq?.id ?? null,
-        history_count: customerColls.length,
-      };
-    });
-    setRows(out);
+    const groups = groupCollectionsByCustomer(colls ?? [], profs ?? [], inqs ?? [], itemCount);
+    setCustomerGroups(groups);
     setBusy(false);
   };
 
-  useEffect(() => { if (isAdmin) void load(); }, [isAdmin]);
+  useEffect(() => {
+    if (isAdmin) void load();
+  }, [isAdmin]);
 
-  const filtered = useMemo(() => filter === "all" ? rows : rows.filter((r) => r.status === filter), [rows, filter]);
+  const filtered = useMemo(() => {
+    if (filter === "all") return customerGroups;
+    return customerGroups.filter((g) => g.latestStage === filter);
+  }, [customerGroups, filter]);
+
   const byStage = useMemo(() => {
-    const m: Record<Stage, Row[]> = { Draft: [], Sent: [], Viewed: [], Quoted: [], Negotiating: [], Approved: [], Completed: [], Cancelled: [] };
-    rows.forEach((r) => {
-      if (m[r.status]) m[r.status].push(r);
-      else m["Draft"].push(r);
+    const m: Record<Stage, CustomerGroup[]> = {
+      Draft: [],
+      Sent: [],
+      Viewed: [],
+      Quoted: [],
+      Negotiating: [],
+      Approved: [],
+      Completed: [],
+      Cancelled: [],
+    };
+    customerGroups.forEach((g) => {
+      const stage = (STAGES.includes(g.latestStage as any) ? g.latestStage : "Draft") as Stage;
+      m[stage].push(g);
     });
     return m;
-  }, [rows]);
+  }, [customerGroups]);
 
-  const setStage = async (row: Row, stage: Stage) => {
-    try {
-      await supabase.from("collections").update({ status: stage, inquiry_status: stage as any }).eq("id", row.id);
-    } catch {
-      await supabase.from("collections").update({ inquiry_status: stage as any }).eq("id", row.id);
+  // Mandatory Atomic Pipeline Status Mutation with strict error handling
+  const handleSetStage = async (card: CustomerGroup, newStage: Stage) => {
+    const { data, error } = await supabase.rpc("update_quotation_pipeline_stage", {
+      _collection_id: card.latestCollectionId,
+      _new_stage: newStage,
+    });
+
+    if (error) {
+      toast.error(`Failed to update status: ${error.message}`);
+      return;
     }
-    if (row.inquiry_id) {
-      await supabase.from("whatsapp_inquiries").update({ inquiry_status: stage as any }).eq("id", row.inquiry_id);
-    }
-    toast.success(`Updated stage to ${stage}`);
+
+    toast.success(`Quotation status updated to ${newStage}`);
     void load();
   };
 
-  const assign = async (row: Row, admin_id: string) => {
-    if (!row.inquiry_id) return toast.error("No inquiry yet for this collection");
-    const { error } = await supabase.from("whatsapp_inquiries").update({ assigned_admin_id: admin_id || null }).eq("id", row.inquiry_id);
-    if (error) return toast.error(error.message);
-    toast.success("Assigned admin successfully");
-    void load();
-  };
-
-  const saveNotes = async (row: Row, notes: string) => {
-    await supabase.from("collections").update({ internal_notes: notes }).eq("id", row.id);
-    toast.success("Notes saved");
-  };
-
-  const openWorksheet = async (row: Row) => {
-    setSelectedRow(row);
-    const { data: colItems } = await supabase
-      .from("collection_items")
-      .select("*, products(name, code, price, brand, image_url)")
-      .eq("collection_id", row.id);
-    setSelectedItems(colItems ?? []);
-  };
-
-  if (loading || !isAdmin) return <div className="container-app py-8 text-sm text-muted-foreground">Loading CRM Worksheet…</div>;
+  if (loading || !isAdmin) {
+    return <div className="container-app py-8 text-sm text-muted-foreground">Loading Customer CRM Worksheet…</div>;
+  }
 
   return (
     <div className="container-app py-6 space-y-4">
+      {/* Top Header & Stage Filters */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-display text-xl font-semibold">Collection CRM & Quotation Requests</h1>
-          <p className="text-xs text-muted-foreground">Manage customer quotation requests, project specifications, and inquiry pipelines.</p>
+          <h1 className="font-display text-xl font-semibold">Customer Collection CRM</h1>
+          <p className="text-xs text-muted-foreground">
+            Manage customer quotation requests, project specifications, and quotation pipeline.
+          </p>
         </div>
         <div className="flex flex-wrap gap-1">
-          <button onClick={() => setFilter("all")} className={`rounded px-2.5 py-1 text-xs font-medium ${filter === "all" ? "bg-primary text-primary-foreground" : "border border-border bg-card"}`}>All ({rows.length})</button>
+          <button
+            onClick={() => setFilter("all")}
+            className={`rounded px-2.5 py-1 text-xs font-medium transition ${
+              filter === "all" ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            All Customers ({customerGroups.length})
+          </button>
           {STAGES.map((s) => (
-            <button key={s} onClick={() => setFilter(s)} className={`rounded px-2.5 py-1 text-xs font-medium ${filter === s ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground"}`}>{s} ({byStage[s].length})</button>
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={`rounded px-2.5 py-1 text-xs font-medium transition ${
+                filter === s ? "bg-primary text-primary-foreground" : "border border-border bg-card text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              {s} ({byStage[s].length})
+            </button>
           ))}
         </div>
       </div>
 
+      {/* Pipeline Kanban Grid: 1 Column per Stage */}
       <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
         {STAGES.map((stage) => (
           <div key={stage} className="rounded-xl border border-border bg-card/50 p-2.5">
             <div className="mb-2 flex items-center justify-between border-b border-border/60 pb-1.5 px-1">
               <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{stage}</span>
-              <span className="rounded-full bg-surface-2 text-foreground text-[10px] font-bold px-1.5 py-0.5 border border-border">{byStage[stage].length}</span>
+              <span className="rounded-full bg-surface-2 text-foreground text-[10px] font-bold px-1.5 py-0.5 border border-border">
+                {byStage[stage].length}
+              </span>
             </div>
+
             <div className="space-y-2">
-              {byStage[stage].map((r) => (
-                <div key={r.id} className="rounded-lg border border-border/80 bg-background p-3 text-xs shadow-sm hover:border-primary/40 transition space-y-2">
+              {byStage[stage].map((card) => (
+                <div
+                  key={card.key}
+                  className="rounded-lg border border-border/80 bg-background p-3 text-xs shadow-xs hover:border-primary/40 transition space-y-2"
+                >
+                  {/* Customer Identity Header */}
                   <div className="flex items-start justify-between gap-1">
                     <div className="min-w-0 flex-1">
-                      <span className="font-bold text-foreground block truncate text-sm">{r.customer_name || "Valued Client"}</span>
-                      <span className="text-[11px] text-muted-foreground block truncate">{r.project_name || r.name}</span>
-                      {r.customer_phone && <span className="text-[10px] text-primary/80 font-mono block truncate">{r.customer_phone}</span>}
+                      <span className="font-bold text-foreground block truncate text-sm">
+                        {card.customerName}
+                      </span>
+                      {card.customerEmail && (
+                        <span className="text-[11px] text-muted-foreground block truncate">
+                          {card.customerEmail}
+                        </span>
+                      )}
+                      {card.customerPhone && (
+                        <span className="text-[10px] text-primary font-mono block truncate">
+                          {card.customerPhone}
+                        </span>
+                      )}
                     </div>
-                    {r.version > 1 ? (
-                      <span className="rounded bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 border border-primary/20 shrink-0">v{r.version}</span>
-                    ) : r.history_count > 1 ? (
-                      <span className="rounded bg-muted text-muted-foreground text-[10px] font-medium px-1.5 py-0.5 border border-border shrink-0">{r.history_count} reqs</span>
-                    ) : null}
+                    <span className="rounded bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 border border-primary/20 shrink-0">
+                      {card.totalRequestsCount} req{card.totalRequestsCount === 1 ? "" : "s"}
+                    </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground border-t border-border/40 pt-1.5">
-                    <span className="font-semibold text-foreground">{r.products_count} Item{r.products_count === 1 ? "" : "s"}</span>
-                    <span className="text-[10px] font-mono text-muted-foreground">{r.display_date}</span>
-                  </div>
-
-                  <div className="space-y-1.5 pt-1">
-                    <div>
-                      <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block mb-0.5">Pipeline Status</label>
-                      <select value={r.status} onChange={(e) => setStage(r, e.target.value as Stage)} className="w-full rounded border border-border bg-card px-2 py-1 text-[10px] font-medium">
-                        {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
-                      </select>
+                  {/* Latest Request Meta */}
+                  <div className="rounded bg-muted/40 p-2 border border-border/40 space-y-1 text-[11px]">
+                    <div className="flex items-center justify-between gap-1 text-[10px] font-mono">
+                      <strong className="text-foreground">{card.latestReference}</strong>
+                      <span className="text-muted-foreground">{card.latestSubmittedDate}</span>
                     </div>
-                    <div>
-                      <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block mb-0.5">Assigned Officer</label>
-                      <select value={r.assigned_admin_id ?? ""} onChange={(e) => assign(r, e.target.value)} className="w-full rounded border border-border bg-card px-2 py-1 text-[10px]">
-                        <option value="">Unassigned</option>
-                        {admins.map((a) => <option key={a.id} value={a.id}>{a.full_name || a.email}</option>)}
-                      </select>
+                    <p className="text-muted-foreground truncate font-medium">
+                      {card.latestProjectName}
+                    </p>
+                    <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
+                      <span>{card.latestProductsCount} Product{card.latestProductsCount === 1 ? "" : "s"}</span>
+                      <span className="uppercase font-bold text-[9px] text-foreground/80">{card.latestStage}</span>
                     </div>
                   </div>
 
+                  {/* Pipeline Stage Selector (Assigned Officer REMOVED) */}
+                  <div className="pt-1">
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block mb-0.5">
+                      Pipeline Stage
+                    </label>
+                    <select
+                      value={card.latestStage}
+                      onChange={(e) => void handleSetStage(card, e.target.value as Stage)}
+                      className="w-full rounded border border-border bg-card px-2 py-1 text-[10px] font-medium text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
+                    >
+                      {STAGES.map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Card Actions: Open Workspace + Customer View */}
                   <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-1 text-[11px]">
-                    <Link to="/admin/collections/$id" params={{ id: r.id }} className="inline-flex items-center gap-1 font-bold text-primary hover:underline">
+                    <Link
+                      to="/admin/collections/$id"
+                      params={{ id: card.latestCollectionId }}
+                      className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
+                    >
                       <FileText className="h-3.5 w-3.5" /> Open Workspace →
                     </Link>
-                    <Link to="/collection/$id" params={{ id: r.id }} className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground text-[10px]">
-                      <ExternalLink className="h-3 w-3" /> Customer View
-                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCustomer(card)}
+                      className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground text-[10px] font-medium"
+                    >
+                      <UserIcon className="h-3 w-3" /> Customer View
+                    </button>
                   </div>
                 </div>
               ))}
-              {byStage[stage].length === 0 && !busy && <div className="text-[11px] text-muted-foreground/60 text-center py-4">— Empty —</div>}
+
+              {byStage[stage].length === 0 && !busy && (
+                <div className="text-[11px] text-muted-foreground/50 text-center py-4">— Empty —</div>
+              )}
             </div>
           </div>
         ))}
       </div>
 
-      {/* CRM WORKSHEET MODAL / PANEL */}
-      {selectedRow && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-border pb-3">
+      {/* PHASE 4: CUSTOMER VIEW MODAL (Admin Customer Information) */}
+      {selectedCustomer && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-xl rounded-xl border border-border bg-card p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-border pb-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-display text-lg font-semibold">{selectedRow.name} (v{selectedRow.version})</h3>
-                  {selectedRow.reference_number && (
-                    <span className="rounded-md bg-card text-foreground text-xs font-mono font-bold px-2 py-0.5 border border-border">
-                      {selectedRow.reference_number}
-                    </span>
-                  )}
+                  <UserIcon className="h-5 w-5 text-primary" />
+                  <h3 className="font-display text-lg font-bold">{selectedCustomer.customerName}</h3>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Customer: {selectedRow.customer_name || selectedRow.customer_email || "Guest"}
-                  {selectedRow.customer_phone && ` • Phone: ${selectedRow.customer_phone}`}
+                  Customer Profile & Quotation Request History
                 </p>
               </div>
-              <button onClick={() => setSelectedRow(null)} className="rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-surface-2">Close</button>
+              <button
+                type="button"
+                onClick={() => setSelectedCustomer(null)}
+                className="rounded-md border border-border p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
 
-            {/* Collection Items Breakdown */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2">Project Specification Worksheet</h4>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {selectedItems.map((item: any) => (
-                  <div key={item.id} className="rounded-lg border border-border/80 p-3 bg-background text-xs space-y-1">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span>{item.products?.name || "Product"} (Code: {item.products?.code})</span>
-                      <span className="text-primary font-bold">{item.quantity || 1} {item.unit || "Pieces"}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-muted-foreground text-[11px]">
-                      {item.installation_location && <div>Location: <strong className="text-foreground">{item.installation_location}</strong></div>}
-                      {item.delivery_preference && <div>Delivery: <strong className="text-foreground">{item.delivery_preference}</strong></div>}
-                      {item.installation_required && <div>Installation: <strong className="text-foreground">{item.installation_required}</strong></div>}
-                      {item.project_notes && <div className="col-span-2">Notes: <strong className="text-foreground">{item.project_notes}</strong></div>}
-                    </div>
-                  </div>
-                ))}
+            {/* Customer Details Grid */}
+            <div className="rounded-lg bg-muted/40 p-4 border border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Email Address</span>
+                <span className="font-semibold text-foreground break-all">{selectedCustomer.customerEmail || "Not provided"}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Phone Number</span>
+                <span className="font-semibold text-foreground">{selectedCustomer.customerPhone || "Not provided"}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Account Registered</span>
+                <span className="text-foreground">
+                  {selectedCustomer.accountCreatedAt
+                    ? new Date(selectedCustomer.accountCreatedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                    : "Guest Identity"}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Total Quotation Requests</span>
+                <span className="font-bold text-primary">{selectedCustomer.totalRequestsCount} Submitted Requests</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Current Pipeline Status</span>
+                <span className="font-bold uppercase text-foreground">{selectedCustomer.latestStage}</span>
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">Latest Request Reference</span>
+                <span className="font-mono font-bold text-foreground">{selectedCustomer.latestReference}</span>
               </div>
             </div>
 
-            {/* Internal CRM Notes */}
+            {/* Complete Chronological Request History */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Internal Admin CRM Notes</label>
-              <textarea
-                defaultValue={selectedRow.internal_notes || ""}
-                onBlur={(e) => saveNotes(selectedRow, e.target.value)}
-                placeholder="Add internal notes e.g., Sent quote ₦1.2m on 05/08..."
-                className="w-full rounded-lg border border-border bg-background p-2.5 text-xs focus:ring-2 focus:ring-primary focus:outline-none"
-                rows={3}
-              />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-primary" /> Request History ({selectedCustomer.collections.length})
+              </h4>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {selectedCustomer.collections.map((col, idx) => {
+                  const dateVal = col.submitted_at || col.created_at;
+                  const formattedDate = dateVal
+                    ? new Date(dateVal).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                    : "Recent";
+
+                  return (
+                    <div
+                      key={col.id}
+                      className="rounded-lg border border-border/80 p-3 bg-background text-xs flex items-center justify-between gap-3 hover:border-primary/40 transition"
+                    >
+                      <div className="min-w-0 flex-1 space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-foreground truncate">{col.project_name || col.name || "Project Request"}</span>
+                          {col.version > 1 && (
+                            <span className="rounded bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.2 border border-primary/20">
+                              v{col.version}
+                            </span>
+                          )}
+                          <span className="rounded bg-muted px-1.5 py-0.2 text-[9px] font-bold uppercase text-muted-foreground border border-border">
+                            {col.status || (col.is_locked ? "Submitted" : "Draft")}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                          {col.reference_number || col.id.slice(0, 8)} • {formattedDate}
+                        </p>
+                      </div>
+
+                      <Link
+                        to="/admin/collections/$id"
+                        params={{ id: col.id }}
+                        onClick={() => setSelectedCustomer(null)}
+                        className="inline-flex items-center gap-1 rounded bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary hover:bg-primary/20 transition shrink-0"
+                      >
+                        Open Workspace <ArrowRight className="h-3 w-3" />
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-2 border-t border-border flex items-center justify-between">
+              <Link
+                to="/admin/collections/$id"
+                params={{ id: selectedCustomer.latestCollectionId }}
+                onClick={() => setSelectedCustomer(null)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 transition shadow-xs"
+              >
+                <FileText className="h-3.5 w-3.5" /> Open Latest Workspace ({selectedCustomer.latestReference})
+              </Link>
+              <button
+                type="button"
+                onClick={() => setSelectedCustomer(null)}
+                className="rounded-lg border border-border px-4 py-2 text-xs font-medium hover:bg-muted transition"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
@@ -313,4 +357,3 @@ function CollectionsCrmPage() {
     </div>
   );
 }
-
