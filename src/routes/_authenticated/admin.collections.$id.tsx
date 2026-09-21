@@ -191,7 +191,7 @@ function AdminCustomerWorkspacePage() {
 
   // Mandatory Atomic Pipeline Status Mutation with strict error inspection
   const handleSaveStatus = async (newStage: Stage) => {
-    const { data, error } = await supabase.rpc("update_quotation_pipeline_stage", {
+    const { data, error } = await (supabase.rpc as any)("update_quotation_pipeline_stage", {
       _collection_id: id,
       _new_stage: newStage,
     });

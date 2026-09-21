@@ -80,7 +80,7 @@ function CollectionsCrmPage() {
 
   // Mandatory Atomic Pipeline Status Mutation with strict error handling
   const handleSetStage = async (card: CustomerGroup, newStage: Stage) => {
-    const { data, error } = await supabase.rpc("update_quotation_pipeline_stage", {
+    const { data, error } = await (supabase.rpc as any)("update_quotation_pipeline_stage", {
       _collection_id: card.latestCollectionId,
       _new_stage: newStage,
     });

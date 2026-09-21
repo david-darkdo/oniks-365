@@ -26,7 +26,7 @@ import {
 import { publicImageUrl } from "@/components/ImageUploader";
 
 export const Route = createFileRoute("/my-collections")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): { collection?: string } => ({
     collection: (search.collection as string) || undefined,
   }),
   head: () => ({ meta: [{ title: "My Collection History — ONIKS365" }] }),
