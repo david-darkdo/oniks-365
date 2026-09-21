@@ -25,7 +25,7 @@ import { getCustomerIdentityKey, normalizePhone, normalizeEmail } from "@/lib/cu
 const STAGES = ["Draft", "Sent", "Viewed", "Quoted", "Negotiating", "Approved", "Completed", "Cancelled"] as const;
 type Stage = (typeof STAGES)[number];
 
-export const Route = createFileRoute("/_authenticated/admin/collections/$id")({
+export const Route = createFileRoute("/_authenticated/admin/collections_/$id")({
   head: () => ({ meta: [{ title: "Customer Quotation Workspace — Admin" }] }),
   beforeLoad: async ({ location, params }) => {
     // 1. Verify authentication
@@ -59,7 +59,7 @@ export const Route = createFileRoute("/_authenticated/admin/collections/$id")({
 });
 
 function AdminCustomerWorkspacePage() {
-  const { id } = useParams({ from: "/_authenticated/admin/collections/$id" });
+  const { id } = Route.useParams();
   const { isAdmin, loading: authLoading } = useAuth();
   const { data: settings } = useAppSettings();
 

@@ -583,7 +583,7 @@ function ProductPage() {
               </span>
             </div>
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-              {familyVariants.map((v) => {
+              {familyVariants.map((v: any) => {
                 const img = publicImageUrl(v.image_url) || publicImageUrl(v.generated_studio_image);
                 return (
                   <Link

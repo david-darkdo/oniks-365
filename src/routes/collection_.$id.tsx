@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { ShieldAlert } from "lucide-react";
 
-export const Route = createFileRoute("/collection/$id")({
+export const Route = createFileRoute("/collection_/$id")({
   head: () => ({
     meta: [
       { title: "Resolving Project Collection — ONIKS365" },

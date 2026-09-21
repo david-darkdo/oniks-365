@@ -27,7 +27,7 @@ import { Route as SplatRouteImport } from './routes/$'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProductSlugRouteImport } from './routes/product.$slug'
-import { Route as CollectionIdRouteImport } from './routes/collection.$id'
+import { Route as CollectionIdRouteImport } from './routes/collection_.$id'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedFavoritesRouteImport } from './routes/_authenticated/favorites'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
@@ -45,7 +45,7 @@ import { Route as AuthenticatedAdminAiTemplatesRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminProductsNewRouteImport } from './routes/_authenticated/admin.products.new'
 import { Route as AuthenticatedAdminProductsIdRouteImport } from './routes/_authenticated/admin.products.$id'
 import { Route as AuthenticatedAdminCustomersIdRouteImport } from './routes/_authenticated/admin.customers.$id'
-import { Route as AuthenticatedAdminCollectionsIdRouteImport } from './routes/_authenticated/admin.collections.$id'
+import { Route as AuthenticatedAdminCollectionsIdRouteImport } from './routes/_authenticated/admin.collections_.$id'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -137,9 +137,9 @@ const ProductSlugRoute = ProductSlugRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const CollectionIdRoute = CollectionIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => CollectionRoute,
+  id: '/collection_/$id',
+  path: '/collection/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
@@ -240,9 +240,9 @@ const AuthenticatedAdminCustomersIdRoute =
   } as any)
 const AuthenticatedAdminCollectionsIdRoute =
   AuthenticatedAdminCollectionsIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
-    getParentRoute: () => AuthenticatedAdminCollectionsRoute,
+    id: '/collections_/$id',
+    path: '/collections/$id',
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -250,7 +250,7 @@ export interface FileRoutesByFullPath {
   '/$': typeof SplatRoute
   '/account': typeof AccountRoute
   '/auth': typeof AuthRoute
-  '/collection': typeof CollectionRouteWithChildren
+  '/collection': typeof CollectionRoute
   '/contact': typeof ContactRoute
   '/debug-env': typeof DebugEnvRoute
   '/home': typeof HomeRoute
@@ -269,7 +269,7 @@ export interface FileRoutesByFullPath {
   '/product/$slug': typeof ProductSlugRoute
   '/admin/ai-templates': typeof AuthenticatedAdminAiTemplatesRoute
   '/admin/business': typeof AuthenticatedAdminBusinessRoute
-  '/admin/collections': typeof AuthenticatedAdminCollectionsRouteWithChildren
+  '/admin/collections': typeof AuthenticatedAdminCollectionsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRouteWithChildren
   '/admin/diagnostics': typeof AuthenticatedAdminDiagnosticsRoute
   '/admin/email': typeof AuthenticatedAdminEmailRoute
@@ -288,7 +288,7 @@ export interface FileRoutesByTo {
   '/$': typeof SplatRoute
   '/account': typeof AccountRoute
   '/auth': typeof AuthRoute
-  '/collection': typeof CollectionRouteWithChildren
+  '/collection': typeof CollectionRoute
   '/contact': typeof ContactRoute
   '/debug-env': typeof DebugEnvRoute
   '/home': typeof HomeRoute
@@ -306,7 +306,7 @@ export interface FileRoutesByTo {
   '/product/$slug': typeof ProductSlugRoute
   '/admin/ai-templates': typeof AuthenticatedAdminAiTemplatesRoute
   '/admin/business': typeof AuthenticatedAdminBusinessRoute
-  '/admin/collections': typeof AuthenticatedAdminCollectionsRouteWithChildren
+  '/admin/collections': typeof AuthenticatedAdminCollectionsRoute
   '/admin/customers': typeof AuthenticatedAdminCustomersRouteWithChildren
   '/admin/diagnostics': typeof AuthenticatedAdminDiagnosticsRoute
   '/admin/email': typeof AuthenticatedAdminEmailRoute
@@ -327,7 +327,7 @@ export interface FileRoutesById {
   '/$': typeof SplatRoute
   '/account': typeof AccountRoute
   '/auth': typeof AuthRoute
-  '/collection': typeof CollectionRouteWithChildren
+  '/collection': typeof CollectionRoute
   '/contact': typeof ContactRoute
   '/debug-env': typeof DebugEnvRoute
   '/home': typeof HomeRoute
@@ -342,11 +342,11 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/favorites': typeof AuthenticatedFavoritesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
-  '/collection/$id': typeof CollectionIdRoute
+  '/collection_/$id': typeof CollectionIdRoute
   '/product/$slug': typeof ProductSlugRoute
   '/_authenticated/admin/ai-templates': typeof AuthenticatedAdminAiTemplatesRoute
   '/_authenticated/admin/business': typeof AuthenticatedAdminBusinessRoute
-  '/_authenticated/admin/collections': typeof AuthenticatedAdminCollectionsRouteWithChildren
+  '/_authenticated/admin/collections': typeof AuthenticatedAdminCollectionsRoute
   '/_authenticated/admin/customers': typeof AuthenticatedAdminCustomersRouteWithChildren
   '/_authenticated/admin/diagnostics': typeof AuthenticatedAdminDiagnosticsRoute
   '/_authenticated/admin/email': typeof AuthenticatedAdminEmailRoute
@@ -355,7 +355,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRouteWithChildren
   '/_authenticated/admin/prompts': typeof AuthenticatedAdminPromptsRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
-  '/_authenticated/admin/collections/$id': typeof AuthenticatedAdminCollectionsIdRoute
+  '/_authenticated/admin/collections_/$id': typeof AuthenticatedAdminCollectionsIdRoute
   '/_authenticated/admin/customers/$id': typeof AuthenticatedAdminCustomersIdRoute
   '/_authenticated/admin/products/$id': typeof AuthenticatedAdminProductsIdRoute
   '/_authenticated/admin/products/new': typeof AuthenticatedAdminProductsNewRoute
@@ -458,7 +458,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/favorites'
     | '/_authenticated/settings'
-    | '/collection/$id'
+    | '/collection_/$id'
     | '/product/$slug'
     | '/_authenticated/admin/ai-templates'
     | '/_authenticated/admin/business'
@@ -471,7 +471,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/prompts'
     | '/_authenticated/admin/'
-    | '/_authenticated/admin/collections/$id'
+    | '/_authenticated/admin/collections_/$id'
     | '/_authenticated/admin/customers/$id'
     | '/_authenticated/admin/products/$id'
     | '/_authenticated/admin/products/new'
@@ -483,7 +483,7 @@ export interface RootRouteChildren {
   SplatRoute: typeof SplatRoute
   AccountRoute: typeof AccountRoute
   AuthRoute: typeof AuthRoute
-  CollectionRoute: typeof CollectionRouteWithChildren
+  CollectionRoute: typeof CollectionRoute
   ContactRoute: typeof ContactRoute
   DebugEnvRoute: typeof DebugEnvRoute
   HomeRoute: typeof HomeRoute
@@ -495,6 +495,7 @@ export interface RootRouteChildren {
   SitemapPagesDotxmlRoute: typeof SitemapPagesDotxmlRoute
   SitemapProductsDotxmlRoute: typeof SitemapProductsDotxmlRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  CollectionIdRoute: typeof CollectionIdRoute
   ProductSlugRoute: typeof ProductSlugRoute
 }
 
@@ -626,12 +627,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/collection/$id': {
-      id: '/collection/$id'
-      path: '/$id'
+    '/collection_/$id': {
+      id: '/collection_/$id'
+      path: '/collection/$id'
       fullPath: '/collection/$id'
       preLoaderRoute: typeof CollectionIdRouteImport
-      parentRoute: typeof CollectionRoute
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/settings': {
       id: '/_authenticated/settings'
@@ -752,29 +753,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCustomersIdRouteImport
       parentRoute: typeof AuthenticatedAdminCustomersRoute
     }
-    '/_authenticated/admin/collections/$id': {
-      id: '/_authenticated/admin/collections/$id'
-      path: '/$id'
+    '/_authenticated/admin/collections_/$id': {
+      id: '/_authenticated/admin/collections_/$id'
+      path: '/collections/$id'
       fullPath: '/admin/collections/$id'
       preLoaderRoute: typeof AuthenticatedAdminCollectionsIdRouteImport
-      parentRoute: typeof AuthenticatedAdminCollectionsRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
   }
 }
-
-interface AuthenticatedAdminCollectionsRouteChildren {
-  AuthenticatedAdminCollectionsIdRoute: typeof AuthenticatedAdminCollectionsIdRoute
-}
-
-const AuthenticatedAdminCollectionsRouteChildren: AuthenticatedAdminCollectionsRouteChildren =
-  {
-    AuthenticatedAdminCollectionsIdRoute: AuthenticatedAdminCollectionsIdRoute,
-  }
-
-const AuthenticatedAdminCollectionsRouteWithChildren =
-  AuthenticatedAdminCollectionsRoute._addFileChildren(
-    AuthenticatedAdminCollectionsRouteChildren,
-  )
 
 interface AuthenticatedAdminCustomersRouteChildren {
   AuthenticatedAdminCustomersIdRoute: typeof AuthenticatedAdminCustomersIdRoute
@@ -809,7 +796,7 @@ const AuthenticatedAdminProductsRouteWithChildren =
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAiTemplatesRoute: typeof AuthenticatedAdminAiTemplatesRoute
   AuthenticatedAdminBusinessRoute: typeof AuthenticatedAdminBusinessRoute
-  AuthenticatedAdminCollectionsRoute: typeof AuthenticatedAdminCollectionsRouteWithChildren
+  AuthenticatedAdminCollectionsRoute: typeof AuthenticatedAdminCollectionsRoute
   AuthenticatedAdminCustomersRoute: typeof AuthenticatedAdminCustomersRouteWithChildren
   AuthenticatedAdminDiagnosticsRoute: typeof AuthenticatedAdminDiagnosticsRoute
   AuthenticatedAdminEmailRoute: typeof AuthenticatedAdminEmailRoute
@@ -818,13 +805,13 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRouteWithChildren
   AuthenticatedAdminPromptsRoute: typeof AuthenticatedAdminPromptsRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminCollectionsIdRoute: typeof AuthenticatedAdminCollectionsIdRoute
 }
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAiTemplatesRoute: AuthenticatedAdminAiTemplatesRoute,
   AuthenticatedAdminBusinessRoute: AuthenticatedAdminBusinessRoute,
-  AuthenticatedAdminCollectionsRoute:
-    AuthenticatedAdminCollectionsRouteWithChildren,
+  AuthenticatedAdminCollectionsRoute: AuthenticatedAdminCollectionsRoute,
   AuthenticatedAdminCustomersRoute:
     AuthenticatedAdminCustomersRouteWithChildren,
   AuthenticatedAdminDiagnosticsRoute: AuthenticatedAdminDiagnosticsRoute,
@@ -834,6 +821,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRouteWithChildren,
   AuthenticatedAdminPromptsRoute: AuthenticatedAdminPromptsRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedAdminCollectionsIdRoute: AuthenticatedAdminCollectionsIdRoute,
 }
 
 const AuthenticatedAdminRouteWithChildren =
@@ -854,25 +842,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
-interface CollectionRouteChildren {
-  CollectionIdRoute: typeof CollectionIdRoute
-}
-
-const CollectionRouteChildren: CollectionRouteChildren = {
-  CollectionIdRoute: CollectionIdRoute,
-}
-
-const CollectionRouteWithChildren = CollectionRoute._addFileChildren(
-  CollectionRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   SplatRoute: SplatRoute,
   AccountRoute: AccountRoute,
   AuthRoute: AuthRoute,
-  CollectionRoute: CollectionRouteWithChildren,
+  CollectionRoute: CollectionRoute,
   ContactRoute: ContactRoute,
   DebugEnvRoute: DebugEnvRoute,
   HomeRoute: HomeRoute,
@@ -884,6 +860,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapPagesDotxmlRoute: SitemapPagesDotxmlRoute,
   SitemapProductsDotxmlRoute: SitemapProductsDotxmlRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  CollectionIdRoute: CollectionIdRoute,
   ProductSlugRoute: ProductSlugRoute,
 }
 export const routeTree = rootRouteImport

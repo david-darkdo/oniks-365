@@ -98,6 +98,84 @@ function CollectionsCrmPage() {
     return <div className="container-app py-8 text-sm text-muted-foreground">Loading Customer CRM Worksheet…</div>;
   }
 
+  const renderCustomerCard = (card: CustomerGroup) => (
+    <div
+      key={card.key}
+      className="rounded-lg border border-border/80 bg-background p-3 text-xs shadow-xs hover:border-primary/40 transition space-y-2"
+    >
+      {/* Customer Identity Header */}
+      <div className="flex items-start justify-between gap-1">
+        <div className="min-w-0 flex-1">
+          <span className="font-bold text-foreground block truncate text-sm">
+            {card.customerName}
+          </span>
+          {card.customerEmail && (
+            <span className="text-[11px] text-muted-foreground block truncate">
+              {card.customerEmail}
+            </span>
+          )}
+          {card.customerPhone && (
+            <span className="text-[10px] text-primary font-mono block truncate">
+              {card.customerPhone}
+            </span>
+          )}
+        </div>
+        <span className="rounded bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 border border-primary/20 shrink-0">
+          {card.totalRequestsCount} req{card.totalRequestsCount === 1 ? "" : "s"}
+        </span>
+      </div>
+
+      {/* Latest Request Meta */}
+      <div className="rounded bg-muted/40 p-2 border border-border/40 space-y-1 text-[11px]">
+        <div className="flex items-center justify-between gap-1 text-[10px] font-mono">
+          <strong className="text-foreground">{card.latestReference}</strong>
+          <span className="text-muted-foreground">{card.latestSubmittedDate}</span>
+        </div>
+        <p className="text-muted-foreground truncate font-medium">
+          {card.latestProjectName}
+        </p>
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
+          <span>{card.latestProductsCount} Product{card.latestProductsCount === 1 ? "" : "s"}</span>
+          <span className="uppercase font-bold text-[9px] text-foreground/80">{card.latestStage}</span>
+        </div>
+      </div>
+
+      {/* Pipeline Stage Selector (Assigned Officer REMOVED) */}
+      <div className="pt-1">
+        <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block mb-0.5">
+          Pipeline Stage
+        </label>
+        <select
+          value={card.latestStage}
+          onChange={(e) => void handleSetStage(card, e.target.value as Stage)}
+          className="w-full rounded border border-border bg-card px-2 py-1 text-[10px] font-medium text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
+        >
+          {STAGES.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Card Actions: Open Workspace + Customer View */}
+      <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-1 text-[11px]">
+        <Link
+          to="/admin/collections/$id"
+          params={{ id: card.latestCollectionId }}
+          className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
+        >
+          <FileText className="h-3.5 w-3.5" /> Open Workspace →
+        </Link>
+        <button
+          type="button"
+          onClick={() => setSelectedCustomer(card)}
+          className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground text-[10px] font-medium"
+        >
+          <UserIcon className="h-3 w-3" /> Customer View
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="container-app py-6 space-y-4">
       {/* Top Header & Stage Filters */}
@@ -131,103 +209,56 @@ function CollectionsCrmPage() {
         </div>
       </div>
 
-      {/* Pipeline Kanban Grid: 1 Column per Stage */}
-      <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
-        {STAGES.map((stage) => (
-          <div key={stage} className="rounded-xl border border-border bg-card/50 p-2.5">
-            <div className="mb-2 flex items-center justify-between border-b border-border/60 pb-1.5 px-1">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{stage}</span>
-              <span className="rounded-full bg-surface-2 text-foreground text-[10px] font-bold px-1.5 py-0.5 border border-border">
-                {byStage[stage].length}
+      {/* Pipeline Kanban Grid: All stages vs Filtered Single Stage */}
+      {filter === "all" ? (
+        <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+          {STAGES.map((stage) => (
+            <div key={stage} className="rounded-xl border border-border bg-card/50 p-2.5">
+              <div className="mb-2 flex items-center justify-between border-b border-border/60 pb-1.5 px-1">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{stage}</span>
+                <span className="rounded-full bg-surface-2 text-foreground text-[10px] font-bold px-1.5 py-0.5 border border-border">
+                  {byStage[stage].length}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {byStage[stage].map((card) => renderCustomerCard(card))}
+
+                {byStage[stage].length === 0 && !busy && (
+                  <div className="text-[11px] text-muted-foreground/50 text-center py-4">— Empty —</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between border-b border-border pb-2">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-foreground flex items-center gap-2">
+              <span>{filter} Pipeline</span>
+              <span className="rounded-full bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 border border-primary/20">
+                {filtered.length} Customer{filtered.length === 1 ? "" : "s"}
               </span>
-            </div>
-
-            <div className="space-y-2">
-              {byStage[stage].map((card) => (
-                <div
-                  key={card.key}
-                  className="rounded-lg border border-border/80 bg-background p-3 text-xs shadow-xs hover:border-primary/40 transition space-y-2"
-                >
-                  {/* Customer Identity Header */}
-                  <div className="flex items-start justify-between gap-1">
-                    <div className="min-w-0 flex-1">
-                      <span className="font-bold text-foreground block truncate text-sm">
-                        {card.customerName}
-                      </span>
-                      {card.customerEmail && (
-                        <span className="text-[11px] text-muted-foreground block truncate">
-                          {card.customerEmail}
-                        </span>
-                      )}
-                      {card.customerPhone && (
-                        <span className="text-[10px] text-primary font-mono block truncate">
-                          {card.customerPhone}
-                        </span>
-                      )}
-                    </div>
-                    <span className="rounded bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 border border-primary/20 shrink-0">
-                      {card.totalRequestsCount} req{card.totalRequestsCount === 1 ? "" : "s"}
-                    </span>
-                  </div>
-
-                  {/* Latest Request Meta */}
-                  <div className="rounded bg-muted/40 p-2 border border-border/40 space-y-1 text-[11px]">
-                    <div className="flex items-center justify-between gap-1 text-[10px] font-mono">
-                      <strong className="text-foreground">{card.latestReference}</strong>
-                      <span className="text-muted-foreground">{card.latestSubmittedDate}</span>
-                    </div>
-                    <p className="text-muted-foreground truncate font-medium">
-                      {card.latestProjectName}
-                    </p>
-                    <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-0.5">
-                      <span>{card.latestProductsCount} Product{card.latestProductsCount === 1 ? "" : "s"}</span>
-                      <span className="uppercase font-bold text-[9px] text-foreground/80">{card.latestStage}</span>
-                    </div>
-                  </div>
-
-                  {/* Pipeline Stage Selector (Assigned Officer REMOVED) */}
-                  <div className="pt-1">
-                    <label className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block mb-0.5">
-                      Pipeline Stage
-                    </label>
-                    <select
-                      value={card.latestStage}
-                      onChange={(e) => void handleSetStage(card, e.target.value as Stage)}
-                      className="w-full rounded border border-border bg-card px-2 py-1 text-[10px] font-medium text-foreground focus:ring-1 focus:ring-primary focus:outline-none"
-                    >
-                      {STAGES.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Card Actions: Open Workspace + Customer View */}
-                  <div className="pt-2 border-t border-border/40 flex items-center justify-between gap-1 text-[11px]">
-                    <Link
-                      to="/admin/collections/$id"
-                      params={{ id: card.latestCollectionId }}
-                      className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
-                    >
-                      <FileText className="h-3.5 w-3.5" /> Open Workspace →
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedCustomer(card)}
-                      className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground text-[10px] font-medium"
-                    >
-                      <UserIcon className="h-3 w-3" /> Customer View
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              {byStage[stage].length === 0 && !busy && (
-                <div className="text-[11px] text-muted-foreground/50 text-center py-4">— Empty —</div>
-              )}
-            </div>
+            </h2>
+            <button
+              onClick={() => setFilter("all")}
+              className="text-xs text-primary font-medium hover:underline"
+            >
+              ← View All Columns ({customerGroups.length})
+            </button>
           </div>
-        ))}
-      </div>
+
+          {filtered.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-card/30 p-12 text-center text-muted-foreground text-xs">
+              No customer quotation requests currently in the <strong className="text-foreground">{filter}</strong> stage.
+            </div>
+          ) : (
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {filtered.map((card) => renderCustomerCard(card))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* PHASE 4: CUSTOMER VIEW MODAL (Admin Customer Information) */}
       {selectedCustomer && (

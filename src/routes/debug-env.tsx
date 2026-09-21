@@ -79,7 +79,7 @@ function DebugEnvPage() {
       <div style={{ marginTop: "2rem", borderTop: "1px solid #334155", paddingTop: "1rem" }}>
         <h2>Tables Inspected:</h2>
         <ul>
-          {data.tablesList.map((t, idx) => (
+          {data.tablesList.map((t: string, idx: number) => (
             <li key={idx}>{t}</li>
           ))}
         </ul>
