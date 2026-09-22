@@ -57,6 +57,8 @@ function RebuiltNewProductPage() {
 
   // Extracted AI Intelligence Object
   const [aiIntelligence, setAiIntelligence] = useState<any>(null);
+  const [faqs, setFaqs] = useState<Array<{ question: string; answer: string }>>([]);
+  const [structuredData, setStructuredData] = useState<any>(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -81,13 +83,20 @@ function RebuiltNewProductPage() {
     seo_description: "",
     seo_keywords: "",
     canonical_slug: "",
-    meta_keywords: "",
     search_keywords: "",
-    alternative_terms: "",
-    synonyms: "",
-    related_terms: "",
-    misspellings: "",
+    alternative_names: "",
+    customer_search_phrases: "",
+    search_synonyms: "",
+    related_search_terms: "",
+    common_misspellings: "",
+    showroom_search_index: "",
+    product_highlights: "",
+    product_features: "",
+    product_benefits: "",
   });
+
+  const arrToStr = (v: any) => (Array.isArray(v) ? v.join(", ") : v ?? "");
+  const strToArr = (v: string) => v.split(",").map((s) => s.trim()).filter(Boolean);
 
   useEffect(() => {
     (async () => {
@@ -180,28 +189,56 @@ function RebuiltNewProductPage() {
         const d = res.details;
         setAiIntelligence(d);
 
-        const prodDesc = d.short_description || d.generated_description || "";
-        const seoDesc = d.seo_description || d.meta_description || "";
-        const seoKw = Array.isArray(d.seo_keywords) ? d.seo_keywords.join(", ") : (d.seo_keywords || "");
-        const searchKw = Array.isArray(d.search_keywords) ? d.search_keywords.join(", ") : (d.search_keywords || "");
+        if (d.structured_data || res.product?.structured_data) {
+          setStructuredData(d.structured_data || res.product?.structured_data);
+        }
+
+        const prodDesc = d.short_description || d.generated_description || res.productDescription || "";
+        const seoDesc = d.seo_description || d.meta_description || res.seoDescription || "";
+        const seoKw = arrToStr(d.seo_keywords);
+        const searchKw = arrToStr(d.search_keywords || res.product?.app_keywords);
+        const altNames = arrToStr(d.alternative_names);
+        const custPhrases = arrToStr(d.customer_search_phrases);
+        const searchSyns = arrToStr(d.search_synonyms);
+        const relTerms = arrToStr(d.related_search_terms);
+        const misspell = arrToStr(d.common_misspellings);
+        const showIdx = arrToStr(d.showroom_search_index);
+        const highlights = arrToStr(d.product_highlights);
+        const features = arrToStr(d.product_features);
+        const benefits = arrToStr(d.product_benefits);
 
         setForm((prev) => ({
           ...prev,
           description: prodDesc || prev.description,
-          seo_title: d.seo_title || prev.seo_title,
+          seo_title: d.seo_title || prev.seo_title || (prev.name ? `${prev.name} | ONIKS365 Nigeria` : ""),
           seo_description: seoDesc || prev.seo_description,
           seo_keywords: seoKw || prev.seo_keywords,
-          canonical_slug: d.canonical_slug || prev.canonical_slug,
+          canonical_slug: d.canonical_slug || prev.canonical_slug || slugify(prev.name),
           search_keywords: searchKw || prev.search_keywords,
-          alternative_terms: Array.isArray(d.alternative_names) ? d.alternative_names.join(", ") : (d.alternative_names || prev.alternative_terms),
-          synonyms: Array.isArray(d.customer_search_phrases) ? d.customer_search_phrases.join(", ") : (Array.isArray(d.search_synonyms) ? d.search_synonyms.join(", ") : prev.synonyms),
-          related_terms: Array.isArray(d.related_search_terms) ? d.related_search_terms.join(", ") : (d.related_search_terms || prev.related_terms),
-          misspellings: Array.isArray(d.common_misspellings) ? d.common_misspellings.join(", ") : (d.common_misspellings || prev.misspellings),
+          alternative_names: altNames || prev.alternative_names,
+          customer_search_phrases: custPhrases || prev.customer_search_phrases,
+          search_synonyms: searchSyns || prev.search_synonyms,
+          related_search_terms: relTerms || prev.related_search_terms,
+          common_misspellings: misspell || prev.common_misspellings,
+          showroom_search_index: showIdx || prev.showroom_search_index,
+          product_highlights: highlights || prev.product_highlights,
+          product_features: features || prev.product_features,
+          product_benefits: benefits || prev.product_benefits,
         }));
 
-        toast.success("Engine 1: Product details generated!");
+        if (Array.isArray(d.faq) && d.faq.length > 0) {
+          setFaqs(d.faq.map((item: any) => ({ question: String(item.question || ""), answer: String(item.answer || "") })));
+        } else if (Array.isArray(res.product?.faq) && res.product.faq.length > 0) {
+          setFaqs((res.product.faq as any[]).map((item: any) => ({ question: String(item.question || ""), answer: String(item.answer || "") })));
+        }
+
+        toast.success("Engine 1: Product details & search intelligence generated!");
       }
-      await supabase.from("products").delete().eq("id", tempProduct.id);
+      try {
+        await supabase.from("search_index").delete().eq("product_id", tempProduct.id);
+        await supabase.from("product_understanding").delete().eq("product_id", tempProduct.id);
+        await supabase.from("products").delete().eq("id", tempProduct.id);
+      } catch {}
     } catch (e: any) {
       toast.error(e.message || "Failed to generate product details");
     } finally {
@@ -282,40 +319,63 @@ function RebuiltNewProductPage() {
     const finalCanonicalSlug = slugify(form.canonical_slug) || slugify(form.name);
     const slug = `${finalCanonicalSlug}-${Math.random().toString(36).slice(2, 6)}`;
 
-    const seoKeywordsArray = form.seo_keywords
-      ? form.seo_keywords.split(",").map(k => k.trim()).filter(Boolean)
-      : [];
-
-    const searchKeywordsArray = Array.from(new Set([
-      ...(form.search_keywords ? form.search_keywords.split(",").map(k => k.trim()) : []),
-      ...(form.alternative_terms ? form.alternative_terms.split(",").map(k => k.trim()) : []),
-      ...(form.synonyms ? form.synonyms.split(",").map(k => k.trim()) : []),
-      ...(form.related_terms ? form.related_terms.split(",").map(k => k.trim()) : []),
-      ...(form.misspellings ? form.misspellings.split(",").map(k => k.trim()) : []),
-    ])).filter(Boolean);
+    const seoKeywordsArray = strToArr(form.seo_keywords);
+    const searchKeywordsArray = strToArr(form.search_keywords);
+    const altNamesArray = strToArr(form.alternative_names);
+    const custPhrasesArray = strToArr(form.customer_search_phrases);
+    const searchSynsArray = strToArr(form.search_synonyms);
+    const relTermsArray = strToArr(form.related_search_terms);
+    const misspellingsArray = strToArr(form.common_misspellings);
+    const showroomIndexArray = strToArr(form.showroom_search_index);
+    const highlightsArray = strToArr(form.product_highlights);
+    const featuresArray = strToArr(form.product_features);
+    const benefitsArray = strToArr(form.product_benefits);
 
     const finalStatus = targetStatus || form.status;
     const finalProductDesc = form.description.trim() || null;
     const finalSeoDesc = form.seo_description.trim() || null;
 
     const masterDoc = {
-      alternative_names: form.alternative_terms ? form.alternative_terms.split(",").map(k => k.trim()).filter(Boolean) : (aiIntelligence?.alternative_names || []),
-      customer_search_phrases: form.synonyms ? form.synonyms.split(",").map(k => k.trim()).filter(Boolean) : (aiIntelligence?.customer_search_phrases || []),
-      search_synonyms: form.synonyms ? form.synonyms.split(",").map(k => k.trim()).filter(Boolean) : (aiIntelligence?.search_synonyms || []),
-      related_search_terms: form.related_terms ? form.related_terms.split(",").map(k => k.trim()).filter(Boolean) : (aiIntelligence?.related_search_terms || []),
-      common_misspellings: form.misspellings ? form.misspellings.split(",").map(k => k.trim()).filter(Boolean) : (aiIntelligence?.common_misspellings || []),
-      product_highlights: aiIntelligence?.product_highlights || [],
-      product_features: aiIntelligence?.product_features || [],
-      product_benefits: aiIntelligence?.product_benefits || [],
+      alternative_names: altNamesArray.length > 0 ? altNamesArray : (aiIntelligence?.alternative_names || []),
+      customer_search_phrases: custPhrasesArray.length > 0 ? custPhrasesArray : (aiIntelligence?.customer_search_phrases || []),
+      search_synonyms: searchSynsArray.length > 0 ? searchSynsArray : (aiIntelligence?.search_synonyms || []),
+      related_search_terms: relTermsArray.length > 0 ? relTermsArray : (aiIntelligence?.related_search_terms || []),
+      common_misspellings: misspellingsArray.length > 0 ? misspellingsArray : (aiIntelligence?.common_misspellings || []),
+      product_highlights: highlightsArray.length > 0 ? highlightsArray : (aiIntelligence?.product_highlights || []),
+      product_features: featuresArray.length > 0 ? featuresArray : (aiIntelligence?.product_features || []),
+      product_benefits: benefitsArray.length > 0 ? benefitsArray : (aiIntelligence?.product_benefits || []),
       google_search_tags: aiIntelligence?.google_search_tags || [],
       google_local_search_terms: aiIntelligence?.google_local_search_terms || [],
       location_keywords: aiIntelligence?.location_keywords || [],
-      showroom_search_index: aiIntelligence?.showroom_search_index || [],
+      showroom_search_index: showroomIndexArray.length > 0 ? showroomIndexArray : (aiIntelligence?.showroom_search_index || []),
+      search_keywords: searchKeywordsArray.length > 0 ? searchKeywordsArray : (aiIntelligence?.search_keywords || []),
       seo_keywords: seoKeywordsArray,
-      open_graph_title: aiIntelligence?.open_graph_title || "",
-      open_graph_description: aiIntelligence?.open_graph_description || "",
+      faq: faqs.length > 0 ? faqs : (aiIntelligence?.faq || []),
+      open_graph_title: form.seo_title.trim() || aiIntelligence?.open_graph_title || "",
+      open_graph_description: finalSeoDesc || aiIntelligence?.open_graph_description || "",
       canonical_slug: finalCanonicalSlug,
+      style: aiIntelligence?.style || "",
+      installation_type: aiIntelligence?.installation_type || "",
+      installation_context: aiIntelligence?.installation_context || "",
     };
+
+    const rawSearchKeywords = [
+      ...(aiIntelligence?.google_search_tags || []),
+      ...(aiIntelligence?.google_local_search_terms || []),
+      ...searchKeywordsArray,
+      ...searchSynsArray,
+      ...altNamesArray,
+      ...relTermsArray,
+      ...custPhrasesArray,
+      ...misspellingsArray,
+      ...(aiIntelligence?.location_keywords || []),
+      ...showroomIndexArray,
+      ...highlightsArray,
+      ...featuresArray,
+      ...benefitsArray,
+    ].filter(Boolean);
+
+    const finalSearchKeywords = Array.from(new Set(rawSearchKeywords));
 
     const payload = {
       type_id,
@@ -343,17 +403,17 @@ function RebuiltNewProductPage() {
       featured_feed: form.featured_feed,
       hidden: form.hidden,
       short_description: finalProductDesc,
-      generated_description: aiIntelligence?.generated_description || null,
+      generated_description: form.description.trim() || aiIntelligence?.generated_description || null,
       seo_title: form.seo_title.trim() || null,
       seo_description: finalSeoDesc,
       seo_keywords: seoKeywordsArray,
       canonical_slug: finalCanonicalSlug,
       master_document: masterDoc,
       ai_understanding: masterDoc,
-      faq: aiIntelligence?.faq || null,
-      structured_data: aiIntelligence?.structured_data || null,
-      app_keywords: searchKeywordsArray,
-      app_search_keywords: searchKeywordsArray,
+      faq: faqs.length > 0 ? faqs : (aiIntelligence?.faq || null),
+      structured_data: structuredData || aiIntelligence?.structured_data || null,
+      app_keywords: finalSearchKeywords,
+      app_search_keywords: finalSearchKeywords,
       seo_title_manual: !isAiMode,
       seo_description_manual: !isAiMode,
       seo_keywords_manual: !isAiMode,
@@ -844,6 +904,99 @@ function RebuiltNewProductPage() {
                 {aiIntelligence ? `Generated title: "${aiIntelligence.seo_title || "OK"}" | Description length: ${(form.description || "").length} chars` : "No AI execution log generated yet. Click above to run Engine 1 or Engine 2."}
               </p>
             </div>
+
+            {/* Generated Highlights, Features & Benefits */}
+            <div className="grid gap-3 sm:grid-cols-3 pt-2">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Product Highlights</label>
+                <textarea
+                  rows={3}
+                  value={form.product_highlights}
+                  onChange={(e) => setForm((f) => ({ ...f, product_highlights: e.target.value }))}
+                  placeholder="Key selling points..."
+                  className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Product Features</label>
+                <textarea
+                  rows={3}
+                  value={form.product_features}
+                  onChange={(e) => setForm((f) => ({ ...f, product_features: e.target.value }))}
+                  placeholder="Technical & architectural features..."
+                  className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Product Benefits</label>
+                <textarea
+                  rows={3}
+                  value={form.product_benefits}
+                  onChange={(e) => setForm((f) => ({ ...f, product_benefits: e.target.value }))}
+                  placeholder="Customer lifestyle & durability benefits..."
+                  className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+                />
+              </div>
+            </div>
+
+            {/* Frequently Asked Questions (FAQ) Management */}
+            <div className="pt-2 border-t border-border/60">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-foreground">
+                  Product FAQs ({faqs.length})
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setFaqs((prev) => [...prev, { question: "", answer: "" }])}
+                  className="rounded border border-primary/40 bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary hover:bg-primary/20 transition"
+                >
+                  + Add FAQ
+                </button>
+              </div>
+
+              {faqs.length > 0 ? (
+                <div className="space-y-3">
+                  {faqs.map((item, idx) => (
+                    <div key={idx} className="rounded-lg border border-border bg-background p-3 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase text-primary">Question #{idx + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => setFaqs((prev) => prev.filter((_, i) => i !== idx))}
+                          className="text-[10px] text-destructive hover:underline"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={item.question || ""}
+                        onChange={(e) => {
+                          const next = [...faqs];
+                          next[idx] = { ...next[idx], question: e.target.value };
+                          setFaqs(next);
+                        }}
+                        placeholder="e.g. Is installation hardware included?"
+                        className="w-full rounded-md border border-input bg-card p-2 text-xs font-medium"
+                      />
+                      <textarea
+                        rows={2}
+                        value={item.answer || ""}
+                        onChange={(e) => {
+                          const next = [...faqs];
+                          next[idx] = { ...next[idx], answer: e.target.value };
+                          setFaqs(next);
+                        }}
+                        placeholder="Accurate factual answer..."
+                        className="w-full rounded-md border border-input bg-card p-2 text-xs text-muted-foreground"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground italic py-1">No FAQs generated yet. Run Engine 1 to populate 2–3 product-specific questions.</p>
+              )}
+            </div>
           </div>
         )}
       </section>
@@ -927,55 +1080,73 @@ function RebuiltNewProductPage() {
         {showSearchSection && (
           <div className="p-5 border-t border-border space-y-4 bg-muted/10">
             <div>
-              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Search Keywords</label>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Search Keywords (App Index)</label>
               <textarea
                 rows={2}
                 value={form.search_keywords}
                 onChange={(e) => setForm((f) => ({ ...f, search_keywords: e.target.value }))}
+                className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Alternative Names</label>
+              <textarea
+                rows={2}
+                value={form.alternative_names}
+                onChange={(e) => setForm((f) => ({ ...f, alternative_names: e.target.value }))}
                 className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
               />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Alternative Names</label>
-                <input
-                  type="text"
-                  value={form.alternative_terms}
-                  onChange={(e) => setForm((f) => ({ ...f, alternative_terms: e.target.value }))}
-                  className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Synonyms & Customer Phrases</label>
-                <input
-                  type="text"
-                  value={form.synonyms}
-                  onChange={(e) => setForm((f) => ({ ...f, synonyms: e.target.value }))}
-                  className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
-                />
-              </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Customer Search Phrases</label>
+              <textarea
+                rows={2}
+                value={form.customer_search_phrases}
+                onChange={(e) => setForm((f) => ({ ...f, customer_search_phrases: e.target.value }))}
+                className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+              />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Related Terms</label>
-                <input
-                  type="text"
-                  value={form.related_terms}
-                  onChange={(e) => setForm((f) => ({ ...f, related_terms: e.target.value }))}
-                  className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Common Misspellings</label>
-                <input
-                  type="text"
-                  value={form.misspellings}
-                  onChange={(e) => setForm((f) => ({ ...f, misspellings: e.target.value }))}
-                  className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
-                />
-              </div>
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Synonyms</label>
+              <textarea
+                rows={2}
+                value={form.search_synonyms}
+                onChange={(e) => setForm((f) => ({ ...f, search_synonyms: e.target.value }))}
+                className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Related Search Terms</label>
+              <textarea
+                rows={2}
+                value={form.related_search_terms}
+                onChange={(e) => setForm((f) => ({ ...f, related_search_terms: e.target.value }))}
+                className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Common Misspellings</label>
+              <textarea
+                rows={2}
+                value={form.common_misspellings}
+                onChange={(e) => setForm((f) => ({ ...f, common_misspellings: e.target.value }))}
+                className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Showroom Search Index Tokens</label>
+              <textarea
+                rows={2}
+                value={form.showroom_search_index}
+                onChange={(e) => setForm((f) => ({ ...f, showroom_search_index: e.target.value }))}
+                className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs font-mono"
+              />
             </div>
           </div>
         )}
