@@ -268,31 +268,31 @@ function TopBar() {
         <nav className="hidden md:flex items-center gap-1.5 shrink-0">
           <Link
             to="/home"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs font-bold text-foreground hover:bg-surface-elevated hover:text-primary hover:border-primary/50 transition shadow-xs"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-bold text-gray-200 hover:bg-[#C5A059]/20 hover:text-[#D4AF37] hover:border-[#C5A059] transition shadow-xs"
           >
-            <Home className="h-3.5 w-3.5 text-primary" />
+            <Home className="h-3.5 w-3.5 text-[#D4AF37]" />
             <span>Home</span>
           </Link>
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs font-bold text-foreground hover:bg-surface-elevated hover:text-primary hover:border-primary/50 transition shadow-xs"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-bold text-gray-200 hover:bg-[#C5A059]/20 hover:text-[#D4AF37] hover:border-[#C5A059] transition shadow-xs"
           >
-            <Compass className="h-3.5 w-3.5 text-primary" />
+            <Compass className="h-3.5 w-3.5 text-[#D4AF37]" />
             <span>Showroom</span>
           </Link>
           <Link
             to="/collection"
             search={{ autoPush: false }}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs font-bold text-foreground hover:bg-surface-elevated hover:text-primary hover:border-primary/50 transition shadow-xs"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-bold text-gray-200 hover:bg-[#C5A059]/20 hover:text-[#D4AF37] hover:border-[#C5A059] transition shadow-xs"
           >
-            <Bookmark className="h-3.5 w-3.5 text-primary" />
+            <Bookmark className="h-3.5 w-3.5 text-[#D4AF37]" />
             <span>Workspace</span>
           </Link>
           <Link
             to="/contact"
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 py-1.5 text-xs font-bold text-foreground hover:bg-surface-elevated hover:text-primary hover:border-primary/50 transition shadow-xs"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-bold text-gray-200 hover:bg-[#C5A059]/20 hover:text-[#D4AF37] hover:border-[#C5A059] transition shadow-xs"
           >
-            <Phone className="h-3.5 w-3.5 text-primary" />
+            <Phone className="h-3.5 w-3.5 text-[#D4AF37]" />
             <span>Contact</span>
           </Link>
         </nav>
