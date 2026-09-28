@@ -303,9 +303,9 @@ function TopBar() {
             <div className="relative">
               <button
                 onClick={openNotifications}
-                className="relative grid h-9 w-9 place-items-center rounded-full border border-border bg-surface-2 text-foreground transition hover:border-primary/50 hover:text-primary"
+                className="relative grid h-9 w-9 place-items-center rounded-full border border-white/20 bg-white/10 text-[#D4AF37] transition hover:border-[#C5A059]"
               >
-                <Bell className="h-4 w-4" />
+                <Bell className="h-4 w-4 text-[#D4AF37]" />
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-canvas shadow-sm animate-pulse">
                     {unreadCount}
@@ -379,7 +379,7 @@ function TopBar() {
                 setShowNotifications(false);
               }}
               aria-label="Account menu"
-              className="grid h-9 w-9 place-items-center rounded-full border border-border bg-surface-2 text-foreground hover:border-primary/50 hover:text-primary transition"
+              className="grid h-9 w-9 place-items-center rounded-full border border-white/20 bg-white/10 text-[#D4AF37] hover:border-[#C5A059] transition"
             >
               <User className="h-4 w-4" />
             </button>
@@ -482,13 +482,13 @@ function BottomNav() {
             key={t.label}
             to={t.to}
             className={`flex flex-col items-center gap-0.5 text-[10px] font-medium transition ${
-              t.active ? "text-primary font-bold" : "text-muted-foreground hover:text-foreground"
+              t.active ? "text-[#ea580c] font-bold" : "text-gray-400 hover:text-white"
             }`}
           >
             <div className="relative">
               <t.icon className="h-5 w-5" />
               {t.label === "Collection" && collectionCount > 0 && (
-                <span className="absolute -top-1.5 -right-2 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-canvas shadow-sm">
+                <span className="absolute -top-1.5 -right-2 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#ea580c] text-[8px] font-bold text-white shadow-sm">
                   +{collectionCount}
                 </span>
               )}
