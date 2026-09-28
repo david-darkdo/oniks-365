@@ -233,16 +233,16 @@ function TopBar() {
       <div className="container-app flex items-center gap-4 py-3">
         <Link to="/" className="flex items-center gap-3 group">
           <img
-            src="/apex-logo.png"
-            alt="Apex Security Logo"
+            src="/oniks365-logo.png?v=3"
+            alt="ONIKS365 Logo"
             className="h-9 w-auto object-contain transition group-hover:scale-105"
           />
           <div className="flex flex-col">
             <span className="font-display text-lg font-bold tracking-tight text-[#FD7603] leading-none">
-              APEX SECURITY
+              ONIKS365
             </span>
             <span className="hidden text-[9px] font-semibold tracking-wider text-[#AEB7C4] uppercase sm:block mt-0.5">
-              SECURITY ELECTRONICS & MODERN DOORS
+              ONIKS 365 LUXURY KITCHEN AND BATHROOMS FITTINGS
             </span>
           </div>
         </Link>
@@ -259,7 +259,7 @@ function TopBar() {
           <input
             name="q"
             defaultValue={search?.q ?? ""}
-            placeholder="Search CCTV, smart locks, security doors, access control…"
+            placeholder="Search Sanitary Ware, Kitchen Sinks, Showers & Fittings…"
             className="w-full rounded-full border border-white/20 bg-white/10 py-2 pl-10 pr-4 text-sm text-white placeholder-gray-400 outline-none transition focus:border-[#FD7603] focus:bg-white/15 focus:ring-1 focus:ring-[#FD7603]"
           />
         </form>
