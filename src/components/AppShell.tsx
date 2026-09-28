@@ -475,7 +475,7 @@ function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-surface/95 py-2 backdrop-blur md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-[#C5A059]/30 bg-[#0F1115]/95 py-2 backdrop-blur md:hidden">
       <div className="flex justify-around">
         {nav.map((t) => (
           <Link
