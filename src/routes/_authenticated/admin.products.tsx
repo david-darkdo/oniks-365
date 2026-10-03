@@ -216,10 +216,14 @@ function ProductLibrary() {
       pricing_unit: r.pricing_unit || "piece",
     };
 
-  const setPriceDraft = (id: string, field: "price" | "original_price" | "pricing_unit", value: string) => {
+  const setPriceDraft = (r: Row, field: "price" | "original_price" | "pricing_unit", value: string) => {
     setPriceDrafts((current) => {
-      const existing = current[id] ?? { price: "", original_price: "", pricing_unit: "piece" };
-      return { ...current, [id]: { ...existing, [field]: value } };
+      const existing = current[r.id] ?? {
+        price: Number(r.price) > 0 ? String(r.price) : "",
+        original_price: Number(r.original_price ?? 0) > 0 ? String(r.original_price) : "",
+        pricing_unit: r.pricing_unit || "piece",
+      };
+      return { ...current, [r.id]: { ...existing, [field]: value } };
     });
   };
 
@@ -429,7 +433,7 @@ function ProductLibrary() {
                             <select
                               aria-label="Price unit"
                               value={draft.pricing_unit}
-                              onChange={(e) => setPriceDraft(r.id, "pricing_unit", e.target.value)}
+                              onChange={(e) => setPriceDraft(r, "pricing_unit", e.target.value)}
                               disabled={saving}
                               className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1.5 text-xs font-medium outline-none focus:border-primary disabled:opacity-60"
                             >
@@ -462,7 +466,7 @@ function ProductLibrary() {
                                 aria-label="Original price"
                                 value={draft.original_price}
                                 placeholder="Optional"
-                                onChange={(e) => setPriceDraft(r.id, "original_price", e.target.value)}
+                                onChange={(e) => setPriceDraft(r, "original_price", e.target.value)}
                                 disabled={saving}
                                 className="mt-1 w-full rounded-md border border-input bg-card px-2 py-1.5 text-xs outline-none focus:border-primary disabled:opacity-60"
                               />
@@ -477,7 +481,7 @@ function ProductLibrary() {
                                 aria-label="Normal price"
                                 value={draft.price}
                                 placeholder="Enter price"
-                                onChange={(e) => setPriceDraft(r.id, "price", e.target.value)}
+                                onChange={(e) => setPriceDraft(r, "price", e.target.value)}
                                 disabled={saving}
                                 className="mt-1 w-full rounded-md border border-input bg-card px-2 py-1.5 text-xs outline-none focus:border-primary disabled:opacity-60"
                               />
