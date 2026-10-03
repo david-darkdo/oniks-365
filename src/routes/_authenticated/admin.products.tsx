@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { publicImageUrl } from "@/components/ImageUploader";
+import { triggerSitemapUpdate } from "@/lib/seo-publisher";
 
 export const Route = createFileRoute("/_authenticated/admin/products")({
   component: ProductsLayout,
@@ -53,6 +54,8 @@ function ProductLibrary() {
   const [cats, setCats] = useState<{ id: string; name: string; type_id: string }[]>([]);
   const [subs, setSubs] = useState<{ id: string; name: string; category_id: string }[]>([]);
   const [fams, setFams] = useState<{ id: string; name: string; subcategory_id: string }[]>([]);
+  const [priceDrafts, setPriceDrafts] = useState<Record<string, { price: string; original_price: string; pricing_unit: string }>>({});
+  const [priceSaving, setPriceSaving] = useState<Set<string>>(new Set());
 
   const [filters, setFilters] = useState({
     type: "",
@@ -72,7 +75,7 @@ function ProductLibrary() {
     let q = supabase
       .from("products")
       .select(
-        "id,code,name,production_name,finish_name,price,status,featured_homepage,featured_feed,hidden,ai_status,created_at,image_url,generated_studio_image,type_id,category_id,subcategory_id,family_id,deleted_at",
+        "id,code,name,production_name,finish_name,price,original_price,pricing_unit,status,featured_homepage,featured_feed,hidden,ai_status,created_at,image_url,generated_studio_image,type_id,category_id,subcategory_id,family_id,deleted_at",
       )
       .order("created_at", { ascending: false })
       .limit(500);
@@ -204,6 +207,84 @@ function ProductLibrary() {
       }
     });
     load();
+  };
+
+  const getPriceDraft = (r: Row) =>
+    priceDrafts[r.id] ?? {
+      price: Number(r.price) > 0 ? String(r.price) : "",
+      original_price: Number(r.original_price ?? 0) > 0 ? String(r.original_price) : "",
+      pricing_unit: r.pricing_unit || "piece",
+    };
+
+  const setPriceDraft = (id: string, field: "price" | "original_price" | "pricing_unit", value: string) => {
+    setPriceDrafts((current) => {
+      const existing = current[id] ?? { price: "", original_price: "", pricing_unit: "piece" };
+      return { ...current, [id]: { ...existing, [field]: value } };
+    });
+  };
+
+  const saveInlinePrice = async (r: Row) => {
+    const draft = getPriceDraft(r);
+    const priceText = draft.price.trim();
+    if (!priceText) {
+      toast.error("Normal price is required.");
+      return;
+    }
+    const price = Number(priceText);
+    if (!Number.isFinite(price) || price < 0) {
+      toast.error("Enter a valid normal price.");
+      return;
+    }
+    const originalText = draft.original_price.trim();
+    const originalPrice = originalText ? Number(originalText) : null;
+    if (originalPrice !== null && (!Number.isFinite(originalPrice) || originalPrice < 0)) {
+      toast.error("Enter a valid original price or leave it empty.");
+      return;
+    }
+
+    setPriceSaving((current) => new Set(current).add(r.id));
+    const { error } = await supabase
+      .from("products")
+      .update({ price, original_price: originalPrice, pricing_unit: draft.pricing_unit || "piece" } as any)
+      .eq("id", r.id);
+
+    if (error) {
+      setPriceSaving((current) => {
+        const next = new Set(current);
+        next.delete(r.id);
+        return next;
+      });
+      toast.error(error.message);
+      return;
+    }
+
+    setRows((current) =>
+      current.map((item) =>
+        item.id === r.id
+          ? { ...item, price, original_price: originalPrice, pricing_unit: draft.pricing_unit || "piece" }
+          : item,
+      ),
+    );
+
+    const { error: indexError } = await supabase.rpc("rebuild_search_index" as any, { _product_id: r.id } as any);
+    if (indexError) toast.warning("Price saved, but search index refresh reported an error.");
+    try {
+      await triggerSitemapUpdate(r.id);
+    } catch {
+      // The price is already persisted; a sitemap refresh failure must not undo it.
+    }
+
+    setPriceDrafts((current) => {
+      const next = { ...current };
+      delete next[r.id];
+      return next;
+    });
+    setPriceSaving((current) => {
+      const next = new Set(current);
+      next.delete(r.id);
+      return next;
+    });
+    toast.success("Price updated.");
   };
 
   const confirmPublish = (id: string, name: string) => {
@@ -338,9 +419,73 @@ function ProductLibrary() {
                   <td className="p-2 text-muted-foreground">{r.production_name ?? "—"}</td>
                   <td className="p-2 text-muted-foreground">{r.finish_name ?? "—"}</td>
                   <td className="p-2 text-muted-foreground">{type} › {cat} › {sub} › {fam}</td>
-                  <td className="p-2">
-                    ₦{Number(r.price).toLocaleString()}{" "}
-                    <span className="text-[10px] font-normal text-muted-foreground">/{r.pricing_unit || "piece"}</span>
+                  <td className="p-2 min-w-[260px]">
+                    {(() => {
+                      const draft = getPriceDraft(r);
+                      const saving = priceSaving.has(r.id);
+                      return (
+                        <div className="w-full rounded-lg border border-border bg-background p-2.5 shadow-sm">
+                          <div className="flex items-center gap-2">
+                            <select
+                              aria-label="Price unit"
+                              value={draft.pricing_unit}
+                              onChange={(e) => setPriceDraft(r.id, "pricing_unit", e.target.value)}
+                              disabled={saving}
+                              className="min-w-0 flex-1 rounded-md border border-input bg-card px-2 py-1.5 text-xs font-medium outline-none focus:border-primary disabled:opacity-60"
+                            >
+                              <option value="piece">₦ / piece</option>
+                              <option value="set">₦ / set</option>
+                              <option value="unit">₦ / unit</option>
+                              <option value="sqm">₦ / sqm (m²)</option>
+                              <option value="carton">₦ / carton</option>
+                              <option value="box">₦ / box</option>
+                              <option value="metre">₦ / metre</option>
+                              <option value="roll">₦ / roll</option>
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => saveInlinePrice(r)}
+                              disabled={saving}
+                              className="rounded-md bg-primary px-2.5 py-1.5 text-[11px] font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {saving ? "Saving…" : "Save"}
+                            </button>
+                          </div>
+                          <div className="mt-2 grid grid-cols-2 gap-2">
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Original Price</span>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                min="0"
+                                step="any"
+                                aria-label="Original price"
+                                value={draft.original_price}
+                                placeholder="Optional"
+                                onChange={(e) => setPriceDraft(r.id, "original_price", e.target.value)}
+                                disabled={saving}
+                                className="mt-1 w-full rounded-md border border-input bg-card px-2 py-1.5 text-xs outline-none focus:border-primary disabled:opacity-60"
+                              />
+                            </label>
+                            <label className="block">
+                              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Normal Price</span>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                min="0"
+                                step="any"
+                                aria-label="Normal price"
+                                value={draft.price}
+                                placeholder="Enter price"
+                                onChange={(e) => setPriceDraft(r.id, "price", e.target.value)}
+                                disabled={saving}
+                                className="mt-1 w-full rounded-md border border-input bg-card px-2 py-1.5 text-xs outline-none focus:border-primary disabled:opacity-60"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="p-2"><Badge>{r.status}</Badge></td>
                   <td className="p-2 space-x-1">
