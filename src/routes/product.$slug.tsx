@@ -594,7 +594,7 @@ function ProductPage() {
                     ₦{Number((product as any).original_price).toLocaleString()}
                   </span>
                 )}
-              <p className="font-display text-2xl font-bold text-primary">
+              <p className="font-display text-2xl font-bold text-[#287A55]">
                 ₦{Number(product.price).toLocaleString()}
                 <span className="ml-1 text-sm font-normal text-muted-foreground">
                   /{(product as any).pricing_unit || "piece"}
@@ -745,7 +745,7 @@ function ProductPage() {
                         {v.code ? `Code ${v.code}` : ""}
                       </p>
                       {v.price != null && (
-                        <p className="mt-1 text-xs font-bold text-primary">
+                        <p className="mt-1 text-xs font-bold text-[#287A55]">
                           ₦{Number(v.price).toLocaleString()}
                         </p>
                       )}
