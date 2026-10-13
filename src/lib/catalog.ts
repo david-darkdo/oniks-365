@@ -161,29 +161,41 @@ export async function fetchFeedProductsPaginated(
     supabase.from("products").select(PRODUCT_FIELDS)
   ).order("created_at", { ascending: false });
 
+  // Resolve taxonomy slugs within their parent scope. Subcategory slugs may
+  // repeat across categories (e.g. Soap Dispenser in Kitchen and Bathroom).
+  let resolvedTypeId: string | null = null;
+  let resolvedCategoryId: string | null = null;
+
   if (filters.type) {
-    const { data } = await supabase
+    const { data, error: typeError } = await supabase
       .from("product_types")
       .select("id")
       .eq("slug", filters.type)
       .maybeSingle();
-    if (data?.id) query = query.eq("type_id", data.id);
+    if (typeError) throw typeError;
+    if (!data?.id) return { items: [], nextCursor: null, hasMore: false, totalCount: 0 };
+    resolvedTypeId = data.id;
+    query = query.eq("type_id", resolvedTypeId);
   }
+
   if (filters.category) {
-    const { data } = await supabase
-      .from("categories")
-      .select("id")
-      .eq("slug", filters.category)
-      .maybeSingle();
-    if (data?.id) query = query.eq("category_id", data.id);
+    let categoryLookup = supabase.from("categories").select("id").eq("slug", filters.category);
+    if (resolvedTypeId) categoryLookup = categoryLookup.eq("type_id", resolvedTypeId);
+    const { data, error: categoryError } = await categoryLookup.limit(2);
+    if (categoryError) throw categoryError;
+    if (!data || data.length !== 1) return { items: [], nextCursor: null, hasMore: false, totalCount: 0 };
+    resolvedCategoryId = data[0].id;
+    query = query.eq("category_id", resolvedCategoryId);
   }
+
   if (filters.subcategory) {
-    const { data } = await supabase
-      .from("subcategories")
-      .select("id")
-      .eq("slug", filters.subcategory)
-      .maybeSingle();
-    if (data?.id) query = query.eq("subcategory_id", data.id);
+    let subcategoryLookup = supabase.from("subcategories").select("id").eq("slug", filters.subcategory);
+    if (resolvedCategoryId) subcategoryLookup = subcategoryLookup.eq("category_id", resolvedCategoryId);
+    const { data, error: subcategoryError } = await subcategoryLookup.limit(2);
+    if (subcategoryError) throw subcategoryError;
+    // Fail closed: an invalid or ambiguous slug must never remove the filter.
+    if (!data || data.length !== 1) return { items: [], nextCursor: null, hasMore: false, totalCount: 0 };
+    query = query.eq("subcategory_id", data[0].id);
   }
 
   const { data: rawProducts, error } = await query;
