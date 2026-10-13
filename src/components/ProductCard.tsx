@@ -113,7 +113,7 @@ export function ProductCard({ product }: { product: ProductRow }) {
               ₦{Number(product.original_price).toLocaleString()}
             </span>
           )}
-          <p className="font-display text-base font-extrabold text-[#0F1115]">
+          <p className="font-display text-base font-extrabold text-[#287A55]">
             ₦{Number(product.price).toLocaleString()}
             <span className="ml-1 text-[10px] font-normal text-muted-foreground">/{product.pricing_unit || "piece"}</span>
           </p>
