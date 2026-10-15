@@ -15,6 +15,14 @@ Disallow: /account
 Disallow: /account/*
 Disallow: /favorites
 Disallow: /favorites/*
+Disallow: /auth
+Disallow: /auth/*
+Disallow: /collection
+Disallow: /collection/*
+Disallow: /my-collections
+Disallow: /my-collections/*
+Disallow: /settings
+Disallow: /settings/*
 
 Sitemap: ${origin}/sitemap.xml
 Host: ${origin}
