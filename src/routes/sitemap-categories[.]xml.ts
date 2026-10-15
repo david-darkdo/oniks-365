@@ -27,7 +27,7 @@ export const Route = createFileRoute("/sitemap-categories.xml")({
             supabase.from("categories" as any).select("id, type_id, slug, created_at"),
             supabase.from("subcategories" as any).select("id, category_id, slug, created_at"),
             supabase.from("family_groups" as any).select("id, subcategory_id, slug, created_at"),
-            supabase.from("products" as any).select("type_id, category_id, subcategory_id, family_id").eq("status", "published").eq("hidden", false).is("deleted_at", null),
+            supabase.from("products" as any).select("type_id, category_id, subcategory_id, family_id").eq("status", "published").eq("is_published", true).eq("hidden", false).is("deleted_at", null),
           ]);
 
           const types = (tRes.data || []) as any[];
