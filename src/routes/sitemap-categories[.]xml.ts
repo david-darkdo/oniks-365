@@ -68,7 +68,7 @@ export const Route = createFileRoute("/sitemap-categories.xml")({
             const type = typeMap.get(c.type_id);
             if (type?.slug && c.slug && activeCategoryIds.has(c.id)) {
               urls.push({
-                loc: `${origin}/${type.slug}/${c.slug}`,
+                loc: `${origin}/${encodeURIComponent(type.slug)}/${encodeURIComponent(c.slug)}`,
                 lastmod: c.created_at || now,
                 priority: "0.85",
               });
@@ -81,7 +81,7 @@ export const Route = createFileRoute("/sitemap-categories.xml")({
             const type = cat ? typeMap.get(cat.type_id) : null;
             if (type?.slug && cat?.slug && s.slug && activeSubcategoryIds.has(s.id)) {
               urls.push({
-                loc: `${origin}/${type.slug}/${cat.slug}/${s.slug}`,
+                loc: `${origin}/${encodeURIComponent(type.slug)}/${encodeURIComponent(cat.slug)}/${encodeURIComponent(s.slug)}`,
                 lastmod: s.created_at || now,
                 priority: "0.8",
               });
@@ -97,13 +97,13 @@ export const Route = createFileRoute("/sitemap-categories.xml")({
 
             if (type?.slug && cat?.slug && sub?.slug) {
               urls.push({
-                loc: `${origin}/${type.slug}/${cat.slug}/${sub.slug}/${f.slug}`,
+                loc: `${origin}/${encodeURIComponent(type.slug)}/${encodeURIComponent(cat.slug)}/${encodeURIComponent(sub.slug)}/${encodeURIComponent(f.slug)}`,
                 lastmod: f.created_at || now,
                 priority: "0.75",
               });
             } else if (type?.slug && cat?.slug) {
               urls.push({
-                loc: `${origin}/${type.slug}/${cat.slug}/${f.slug}`,
+                loc: `${origin}/${encodeURIComponent(type.slug)}/${encodeURIComponent(cat.slug)}/${encodeURIComponent(f.slug)}`,
                 lastmod: f.created_at || now,
                 priority: "0.75",
               });
