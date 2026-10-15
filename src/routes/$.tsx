@@ -39,6 +39,7 @@ const hierarchyQuery = (splat: string, origin: string) =>
             .select("id, slug, name")
             .or(`slug.eq.${lastPartSlug},slug.eq.${parts[parts.length - 1]}`)
             .eq("status", "published")
+            .eq("is_published", true)
             .eq("hidden", false)
             .is("deleted_at", null)
             .maybeSingle();
@@ -153,6 +154,7 @@ const hierarchyQuery = (splat: string, origin: string) =>
         .select("id, slug, name, code, price, brand, image_url, generated_studio_image, generated_installed_image, short_description, color, material, finish, alt_text")
         .eq("processing_state", "completed")
         .eq("status", "published")
+        .eq("is_published", true)
         .eq("hidden", false)
         .is("deleted_at", null);
 
@@ -246,10 +248,10 @@ export const Route = createFileRoute("/$")({
 
     const firstImage = loaderData.products[0]?.generated_studio_image || loaderData.products[0]?.image_url || "";
     const metaImageUrl = firstImage ? publicImageUrl(firstImage) : "";
-    const canonical = `${origin}/${type.slug}` + 
-      (category ? `/${category.slug}` : "") + 
-      (subcategory ? `/${subcategory.slug}` : "") + 
-      (family ? `/${family.slug}` : "");
+    const canonical = `${origin}/${encodeURIComponent(type.slug)}` +
+      (category ? `/${encodeURIComponent(category.slug)}` : "") +
+      (subcategory ? `/${encodeURIComponent(subcategory.slug)}` : "") +
+      (family ? `/${encodeURIComponent(family.slug)}` : "");
 
     return {
       meta: [
