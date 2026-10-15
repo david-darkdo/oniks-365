@@ -56,7 +56,7 @@ export const Route = createFileRoute("/sitemap-categories.xml")({
           for (const t of types) {
             if (t.slug && activeTypeIds.has(t.id)) {
               urls.push({
-                loc: `${origin}/${t.slug}`,
+                loc: `${origin}/${encodeURIComponent(t.slug)}`,
                 lastmod: t.created_at || now,
                 priority: "0.9",
               });
