@@ -594,7 +594,7 @@ function ProductPage() {
         <div className="mt-6 space-y-4">
           <div>
             <p className="text-xs font-mono uppercase tracking-[0.18em] text-primary font-bold">
-              {product.brand || "ONIKS365 Showroom"} · Code {product.code}
+              {product.brand ? `${product.brand} · ` : ""}Code {product.code}
             </p>
             <h1 className="mt-1 font-display text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight uppercase">
               {product.name}
