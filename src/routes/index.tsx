@@ -44,10 +44,14 @@ const feedInfiniteQuery = (f: FeedFilters) =>
 export const Route = createFileRoute("/")({
   validateSearch: validateFeedSearch,
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) => {
-    context.queryClient.ensureQueryData(taxonomyQuery);
-    context.queryClient.ensureQueryData(feedHeroQuery);
-    context.queryClient.ensureInfiniteQueryData(feedInfiniteQuery(deps));
+  loader: async ({ context, deps }) => {
+    const [, , feedData] = await Promise.all([
+      context.queryClient.ensureQueryData(taxonomyQuery),
+      context.queryClient.ensureQueryData(feedHeroQuery),
+      context.queryClient.ensureInfiniteQueryData(feedInfiniteQuery(deps)),
+    ]);
+    const initialProducts = feedData?.pages?.[0]?.items ?? [];
+    return { initialProducts };
   },
   head: () => ({
     meta: [
@@ -56,6 +60,16 @@ export const Route = createFileRoute("/")({
         name: "description",
         content: "Discover luxury sanitary ware, bathroom fittings, kitchen solutions, appliances, and space-saving kitchen systems at ONIKS365.",
       },
+      { property: "og:type", content: "website" },
+      { property: "og:title", content: "Discover — ONIKS365 Kitchen & Bathroom Showroom" },
+      {
+        property: "og:description",
+        content: "Discover luxury sanitary ware, bathroom fittings, kitchen solutions, appliances, and space-saving kitchen systems at ONIKS365.",
+      },
+      { property: "og:url", content: "https://oniks365.ng/" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://oniks365.ng/" },
     ],
   }),
   component: FeedPage,
@@ -71,6 +85,7 @@ export const Route = createFileRoute("/")({
 function FeedPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
+  const loaderData = Route.useLoaderData();
   const { data: tax } = useSuspenseQuery(taxonomyQuery);
   const { data: feedHeroItems = [] } = useSuspenseQuery(feedHeroQuery);
   const feedQuery = useInfiniteQuery(feedInfiniteQuery(search));
@@ -97,8 +112,9 @@ function FeedPage() {
   const setSub = (slug?: string) =>
     navigate({ to: "/", search: { ...search, subcategory: slug } });
 
-  const allProducts = feedQuery.data?.pages.flatMap((page) => page.items) ?? [];
-  const totalCount = feedQuery.data?.pages[0]?.totalCount ?? 0;
+  const queryProducts = feedQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const allProducts = queryProducts.length > 0 ? queryProducts : (loaderData?.initialProducts ?? []);
+  const totalCount = feedQuery.data?.pages[0]?.totalCount ?? allProducts.length;
   const hasNextPage = feedQuery.hasNextPage;
   const isFetchingNextPage = feedQuery.isFetchingNextPage;
 
@@ -179,7 +195,7 @@ function FeedPage() {
 
         {/* Product Grid */}
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {feedQuery.isLoading
+          {feedQuery.isLoading && allProducts.length === 0
             ? Array.from({ length: 8 }).map((_, i) => (
                 <ProductCardSkeleton key={i} />
               ))

@@ -9,6 +9,8 @@ import { ArrowRight, Layers } from "lucide-react";
 import { slugify } from "@/lib/slug";
 import { getCanonicalProductUrl } from "@/lib/product-url";
 
+const PAGE_SIZE = 24;
+
 type ResolvedHierarchy = {
   type: any;
   category: any;
@@ -19,15 +21,33 @@ type ResolvedHierarchy = {
   childSubcategories: any[];
   childFamilies: any[];
   origin: string;
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
 };
 
-const hierarchyQuery = (splat: string, origin: string) =>
+const hierarchyQuery = (splat: string, page: number = 1, origin: string = "") =>
   queryOptions({
-    queryKey: ["hierarchy", splat],
+    queryKey: ["hierarchy", splat, page],
     queryFn: async (): Promise<ResolvedHierarchy> => {
       const parts = splat.split("/").filter(Boolean);
       if (parts.length === 0 || parts.length > 5) {
         throw notFound();
+      }
+
+      // Check common alias routes
+      const firstSegment = parts[0]?.toLowerCase();
+      if (
+        firstSegment === "home" ||
+        firstSegment === "all-products" ||
+        firstSegment === "shop" ||
+        firstSegment === "products"
+      ) {
+        throw redirect({
+          href: origin ? `${origin}/` : "/",
+          statusCode: 301,
+        });
       }
 
       // Check if last segment is a product slug (malformed legacy URLs like /doors/exterior-doors/Right door /copper-door)
@@ -53,8 +73,10 @@ const hierarchyQuery = (splat: string, origin: string) =>
         }
       }
 
-      const typeSlug = parts[0];
-      const categorySlug = parts[1] || null;
+      const rawTypeSlug = parts[0];
+      const decodedTypeSlug = decodeURIComponent(rawTypeSlug);
+      const rawCatSlug = parts[1] || null;
+      const decodedCatSlug = rawCatSlug ? decodeURIComponent(rawCatSlug) : null;
       const slug3 = parts[2] || null;
       const slug4 = parts[3] || null;
 
@@ -62,19 +84,19 @@ const hierarchyQuery = (splat: string, origin: string) =>
       const { data: type } = await supabase
         .from("product_types")
         .select("id, name, slug, code_prefix")
-        .eq("slug", typeSlug)
+        .or(`slug.eq."${rawTypeSlug}",slug.eq."${decodedTypeSlug}"`)
         .maybeSingle();
 
       if (!type) throw notFound();
 
       // 2. Resolve Category if provided
       let category = null;
-      if (categorySlug) {
+      if (rawCatSlug) {
         const { data: cat } = await supabase
           .from("categories")
           .select("id, name, slug, type_id")
           .eq("type_id", type.id)
-          .eq("slug", categorySlug)
+          .or(`slug.eq."${rawCatSlug}",slug.eq."${decodedCatSlug}"`)
           .maybeSingle();
         if (!cat) throw notFound();
         category = cat;
@@ -85,13 +107,14 @@ const hierarchyQuery = (splat: string, origin: string) =>
       let family = null;
 
       if (category && parts.length === 3 && slug3) {
+        const decodedSlug3 = decodeURIComponent(slug3);
         // 3-part URL: /type/category/slug3
         // Check if slug3 is a Subcategory first
         const { data: sub } = await supabase
           .from("subcategories")
           .select("id, name, slug, category_id")
           .eq("category_id", category.id)
-          .eq("slug", slug3)
+          .or(`slug.eq."${slug3}",slug.eq."${decodedSlug3}"`)
           .maybeSingle();
 
         if (sub) {
@@ -105,7 +128,11 @@ const hierarchyQuery = (splat: string, origin: string) =>
 
           const subIds = (subsForCat || []).map((s) => s.id);
 
-          let famQuery = supabase.from("family_groups").select("id, name, slug, subcategory_id, custom_ai_prompt_override").eq("slug", slug3);
+          let famQuery = supabase
+            .from("family_groups")
+            .select("id, name, slug, subcategory_id, custom_ai_prompt_override")
+            .or(`slug.eq."${slug3}",slug.eq."${decodedSlug3}"`);
+
           if (subIds.length > 0) {
             famQuery = famQuery.or(`subcategory_id.in.(${subIds.join(",")}),category_id.eq.${category.id}`);
           } else {
@@ -126,12 +153,14 @@ const hierarchyQuery = (splat: string, origin: string) =>
           }
         }
       } else if (category && parts.length === 4 && slug3 && slug4) {
+        const decodedSlug3 = decodeURIComponent(slug3);
+        const decodedSlug4 = decodeURIComponent(slug4);
         // 4-part URL: /type/category/subcategory/family
         const { data: sub } = await supabase
           .from("subcategories")
           .select("id, name, slug, category_id")
           .eq("category_id", category.id)
-          .eq("slug", slug3)
+          .or(`slug.eq."${slug3}",slug.eq."${decodedSlug3}"`)
           .maybeSingle();
 
         if (!sub) throw notFound();
@@ -141,17 +170,24 @@ const hierarchyQuery = (splat: string, origin: string) =>
           .from("family_groups")
           .select("id, name, slug, subcategory_id, custom_ai_prompt_override")
           .eq("subcategory_id", sub.id)
-          .eq("slug", slug4)
+          .or(`slug.eq."${slug4}",slug.eq."${decodedSlug4}"`)
           .maybeSingle();
 
         if (!fam) throw notFound();
         family = fam;
       }
 
-      // 5. Fetch Products
+      // 5. Fetch Products (Paginated)
+      const currentPage = Math.max(1, Math.floor(page));
+      const from = (currentPage - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
       let productsQuery = supabase
         .from("products")
-        .select("id, slug, name, code, price, brand, image_url, generated_studio_image, generated_installed_image, short_description, color, material, finish, alt_text")
+        .select(
+          "id, slug, name, code, price, brand, image_url, generated_studio_image, generated_installed_image, short_description, color, material, finish, alt_text",
+          { count: "exact" }
+        )
         .eq("processing_state", "completed")
         .eq("status", "published")
         .eq("is_published", true)
@@ -168,7 +204,12 @@ const hierarchyQuery = (splat: string, origin: string) =>
         productsQuery = productsQuery.eq("type_id", type.id);
       }
 
-      const { data: products } = await productsQuery.order("created_at", { ascending: false });
+      const { data: products, count: totalProductCount } = await productsQuery
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      const totalCount = totalProductCount ?? (products?.length || 0);
+      const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
       // 6. Fetch Child taxonomy nodes
       let childCategories: any[] = [];
@@ -214,19 +255,32 @@ const hierarchyQuery = (splat: string, origin: string) =>
         childSubcategories,
         childFamilies,
         origin,
+        page: currentPage,
+        pageSize: PAGE_SIZE,
+        totalCount,
+        totalPages,
       };
     },
   });
 
 export const Route = createFileRoute("/$")({
-  loader: async ({ context, params }) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://oniks365.ng';
-    const data = await context.queryClient.ensureQueryData(hierarchyQuery((params as any)._splat ?? "", origin));
+  validateSearch: (search: Record<string, unknown>) => {
+    const p = Number(search?.page);
+    return {
+      page: Number.isInteger(p) && p > 0 ? p : 1,
+    };
+  },
+  loaderDeps: ({ search }) => ({ page: search.page }),
+  loader: async ({ context, params, deps }) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://oniks365.ng";
+    const data = await context.queryClient.ensureQueryData(
+      hierarchyQuery((params as any)._splat ?? "", deps.page, origin)
+    );
     return data;
   },
   head: ({ loaderData }: any): any => {
     if (!loaderData) return {};
-    const { type, category, subcategory, family, origin } = loaderData;
+    const { type, category, subcategory, family, origin, page, totalPages } = loaderData;
 
     // Resolve dynamic fallback meta details
     let title = "";
@@ -248,28 +302,43 @@ export const Route = createFileRoute("/$")({
 
     const firstImage = loaderData.products[0]?.generated_studio_image || loaderData.products[0]?.image_url || "";
     const metaImageUrl = firstImage ? publicImageUrl(firstImage) : "";
-    const canonical = `${origin}/${encodeURIComponent(type.slug)}` +
+    const basePath =
+      `/${encodeURIComponent(type.slug)}` +
       (category ? `/${encodeURIComponent(category.slug)}` : "") +
       (subcategory ? `/${encodeURIComponent(subcategory.slug)}` : "") +
       (family ? `/${encodeURIComponent(family.slug)}` : "");
+    const baseCanonical = `${origin}${basePath}`;
+    const canonical = page > 1 ? `${baseCanonical}?page=${page}` : baseCanonical;
+
+    const links: any[] = [{ rel: "canonical", href: canonical }];
+    if (page > 1) {
+      links.push({
+        rel: "prev",
+        href: page === 2 ? baseCanonical : `${baseCanonical}?page=${page - 1}`,
+      });
+    }
+    if (page < totalPages) {
+      links.push({
+        rel: "next",
+        href: `${baseCanonical}?page=${page + 1}`,
+      });
+    }
 
     return {
       meta: [
-        { title },
+        { title: page > 1 ? `${title} (Page ${page})` : title },
         { name: "description", content: description },
         { property: "og:type", content: "website" },
-        { property: "og:title", content: title },
+        { property: "og:title", content: page > 1 ? `${title} (Page ${page})` : title },
         { property: "og:description", content: description },
         { property: "og:image", content: metaImageUrl },
         { property: "og:url", content: canonical },
         { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:title", content: title },
+        { name: "twitter:title", content: page > 1 ? `${title} (Page ${page})` : title },
         { name: "twitter:description", content: description },
         { name: "twitter:image", content: metaImageUrl },
       ],
-      links: [
-        { rel: "canonical", href: canonical },
-      ],
+      links,
     };
   },
   component: HierarchyLandingPage,
@@ -277,8 +346,25 @@ export const Route = createFileRoute("/$")({
 
 function HierarchyLandingPage() {
   const params = Route.useParams();
-  const { data } = useSuspenseQuery(hierarchyQuery((params as any)._splat, ""));
-  const { type, category, subcategory, family, products, childCategories, childSubcategories, childFamilies, origin } = data;
+  const search = Route.useSearch();
+  const { data } = useSuspenseQuery(
+    hierarchyQuery((params as any)._splat, search.page, "")
+  );
+  const {
+    type,
+    category,
+    subcategory,
+    family,
+    products,
+    childCategories,
+    childSubcategories,
+    childFamilies,
+    origin,
+    page,
+    pageSize,
+    totalCount,
+    totalPages,
+  } = data;
 
   // Build visual breadcrumbs array
   const breadcrumbs = [
@@ -302,11 +388,11 @@ function HierarchyLandingPage() {
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    "itemListElement": breadcrumbs.map((b, i) => ({
+    itemListElement: breadcrumbs.map((b, i) => ({
       "@type": "ListItem",
-      "position": i + 1,
-      "name": b.label,
-      "item": b.path.startsWith("/") ? `${origin}${b.path}` : b.path,
+      position: i + 1,
+      name: b.label,
+      item: b.path.startsWith("/") ? `${origin}${b.path}` : b.path,
     })),
   };
 
@@ -434,7 +520,7 @@ function HierarchyLandingPage() {
         <div className="mt-8">
           <div className="flex items-baseline justify-between border-b border-border pb-3">
             <h2 className="font-display text-lg font-semibold text-foreground">
-              Products ({products.length})
+              Products ({totalCount})
             </h2>
             <span className="text-xs text-muted-foreground">
               Showing premium matching assets
@@ -458,6 +544,70 @@ function HierarchyLandingPage() {
               {products.map((p) => (
                 <ProductCard key={p.id} product={p} />
               ))}
+            </div>
+          )}
+
+          {/* Crawlable Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-border pt-6">
+              <p className="text-xs text-muted-foreground">
+                Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, totalCount)} of {totalCount} products
+              </p>
+              <div className="flex items-center gap-1.5">
+                {page > 1 ? (
+                  <Link
+                    to="."
+                    search={{ page: page - 1 }}
+                    rel="prev"
+                    className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary hover:text-primary transition"
+                  >
+                    Previous
+                  </Link>
+                ) : (
+                  <span className="rounded-lg border border-border/40 bg-muted/20 px-3 py-1.5 text-xs font-medium text-muted-foreground/50 cursor-not-allowed">
+                    Previous
+                  </span>
+                )}
+
+                {/* Page numbers */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                  .map((p, idx, arr) => {
+                    const prevP = arr[idx - 1];
+                    const showEllipsis = prevP && p - prevP > 1;
+                    return (
+                      <span key={p} className="flex items-center">
+                        {showEllipsis && <span className="px-1 text-xs text-muted-foreground">…</span>}
+                        <Link
+                          to="."
+                          search={{ page: p }}
+                          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                            p === page
+                              ? "border border-primary bg-primary text-primary-foreground font-bold shadow-xs"
+                              : "border border-border bg-card text-foreground hover:border-primary hover:text-primary"
+                          }`}
+                        >
+                          {p}
+                        </Link>
+                      </span>
+                    );
+                  })}
+
+                {page < totalPages ? (
+                  <Link
+                    to="."
+                    search={{ page: page + 1 }}
+                    rel="next"
+                    className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary hover:text-primary transition"
+                  >
+                    Next
+                  </Link>
+                ) : (
+                  <span className="rounded-lg border border-border/40 bg-muted/20 px-3 py-1.5 text-xs font-medium text-muted-foreground/50 cursor-not-allowed">
+                    Next
+                  </span>
+                )}
+              </div>
             </div>
           )}
         </div>

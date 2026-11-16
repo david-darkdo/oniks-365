@@ -100,9 +100,14 @@ export function ProductCard({ product }: { product: ProductRow }) {
 
       <div className="flex flex-1 flex-col gap-2 p-3.5">
         <div>
-          <h3 className="font-display text-sm font-bold leading-tight text-[#0F1115] line-clamp-1 group-hover:text-[#ea580c] transition-colors">
-            {product.name}
-          </h3>
+          <Link
+            to="/product/$slug"
+            params={{ slug: getCanonicalProductSlug(product) }}
+          >
+            <h3 className="font-display text-sm font-bold leading-tight text-[#0F1115] line-clamp-1 group-hover:text-[#ea580c] transition-colors">
+              {product.name}
+            </h3>
+          </Link>
           <p className="mt-0.5 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
             CODE · {product.code}
           </p>
