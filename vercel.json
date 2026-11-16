@@ -16,6 +16,17 @@
       "permanent": true
     },
     {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.oniks365.ng"
+        }
+      ],
+      "destination": "https://oniks365.ng/$1",
+      "permanent": true
+    },
+    {
       "source": "/home",
       "destination": "/",
       "permanent": true

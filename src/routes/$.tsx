@@ -178,7 +178,7 @@ const hierarchyQuery = (splat: string, page: number = 1, origin: string = "") =>
       }
 
       // 5. Fetch Products (Paginated)
-      const currentPage = Math.max(1, Math.floor(page));
+      const currentPage = Math.max(1, Math.floor(page || 1));
       const from = (currentPage - 1) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
@@ -267,14 +267,14 @@ export const Route = createFileRoute("/$")({
   validateSearch: (search: Record<string, unknown>) => {
     const p = Number(search?.page);
     return {
-      page: Number.isInteger(p) && p > 0 ? p : 1,
+      page: Number.isInteger(p) && p > 1 ? p : undefined,
     };
   },
   loaderDeps: ({ search }) => ({ page: search.page }),
   loader: async ({ context, params, deps }) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "https://oniks365.ng";
     const data = await context.queryClient.ensureQueryData(
-      hierarchyQuery((params as any)._splat ?? "", deps.page, origin)
+      hierarchyQuery((params as any)._splat ?? "", deps.page || 1, origin)
     );
     return data;
   },
@@ -347,8 +347,9 @@ export const Route = createFileRoute("/$")({
 function HierarchyLandingPage() {
   const params = Route.useParams();
   const search = Route.useSearch();
+  const currentPage = search.page || 1;
   const { data } = useSuspenseQuery(
-    hierarchyQuery((params as any)._splat, search.page, "")
+    hierarchyQuery((params as any)._splat, currentPage, "")
   );
   const {
     type,
@@ -557,7 +558,7 @@ function HierarchyLandingPage() {
                 {page > 1 ? (
                   <Link
                     to="."
-                    search={{ page: page - 1 }}
+                    search={{ page: page === 2 ? undefined : page - 1 }}
                     rel="prev"
                     className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary hover:text-primary transition"
                   >
@@ -580,7 +581,7 @@ function HierarchyLandingPage() {
                         {showEllipsis && <span className="px-1 text-xs text-muted-foreground">…</span>}
                         <Link
                           to="."
-                          search={{ page: p }}
+                          search={{ page: p === 1 ? undefined : p }}
                           className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                             p === page
                               ? "border border-primary bg-primary text-primary-foreground font-bold shadow-xs"

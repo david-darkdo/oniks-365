@@ -221,6 +221,12 @@ function RootAppWrapper() {
   const [initialLoading, setInitialLoading] = useState(true);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hostname === "www.oniks365.ng") {
+      window.location.replace(`https://oniks365.ng${window.location.pathname}${window.location.search}`);
+    }
+  }, []);
+
+  useEffect(() => {
     setInitialLoading(false);
   }, []);
 
